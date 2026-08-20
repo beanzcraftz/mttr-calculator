@@ -395,11 +395,11 @@
                     </div>
 
                     <!-- KPI Cards -->
-                    <div class="kpi-row">
-                        <div class="kpi-card glass">
-                            <div class="kpi-title">SLA Compliance</div>
-                            <div class="kpi-value" id="kpi-compliance">--%</div>
-                            <div class="kpi-badge" id="status-badge">--</div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-bottom: 1.5rem;">
+                        <div class="kpi-card glass" id="kpi-compliance-card">
+                            <div class="kpi-badge" id="kpi-badge">--</div>
+                            <div class="kpi-title">SLA COMPLIANCE</div>
+                            <div class="kpi-value" id="kpi-compliance">--</div>
                         </div>
                         <div class="kpi-card glass">
                             <div class="kpi-title" id="kpi-avg-title">Avg MTTR</div>
@@ -410,6 +410,11 @@
                             <div class="kpi-title">Total Volume</div>
                             <div class="kpi-value" id="kpi-volume">--</div>
                             <div class="kpi-subtitle">Tickets</div>
+                        </div>
+                        <div class="kpi-card glass" id="kpi-breaches-card" style="cursor:pointer; border-bottom: 3px solid #ef4444; transition: transform 0.2s;" title="Click to view open tickets failing the KPI">
+                            <div class="kpi-title" style="color:#ef4444; font-weight:600;">🔥 Active Breaches</div>
+                            <div class="kpi-value" id="kpi-breaches" style="color:#ef4444;">--</div>
+                            <div class="kpi-subtitle">Ongoing Tickets > KPI</div>
                         </div>
                     </div>
 

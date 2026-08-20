@@ -393,9 +393,14 @@ select:focus, input:focus {
 
 .kpi-card {
     padding: 1.5rem;
-    border-radius: var(--radius);
+    border-radius: 12px;
     text-align: center;
     position: relative;
+    overflow: hidden;
+}
+#kpi-breaches-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(239, 68, 68, 0.2);
 }
 
 .kpi-title {

@@ -707,6 +707,7 @@ function renderDashboard() {
     const total = state.processedData.length;
     const allVals = state.processedData.map(r => r[metricKey]);
     let metTarget = 0;
+    let activeBreachesCount = 0;
 
     const groupValMap = {};
     const groupHoursMap = {};
@@ -716,6 +717,7 @@ function renderDashboard() {
 
     state.processedData.forEach(row => {
         if (row[metricKey] <= targetValue) metTarget++;
+        if (row._isOpen && row[metricKey] > targetValue) activeBreachesCount++;
 
         const grp = row[grpCol] || 'Unknown';
         if (!groupValMap[grp]) groupValMap[grp] = [];
@@ -765,6 +767,9 @@ function renderDashboard() {
     els.kpiAvgTitle.textContent = useMedian ? 'Median MTTR' : 'Avg MTTR';
     els.kpiUnitLabel.textContent = kpiUnit;
     els.unitThs.forEach(th => th.textContent = `${useMedian ? 'Median' : 'Avg'} ${kpiUnit}`);
+    
+    const breachesEl = $id('kpi-breaches');
+    if (breachesEl) breachesEl.textContent = activeBreachesCount;
 
     if (displayVal <= targetValue) {
         els.statusBadge.textContent = "TARGET MET";
@@ -1294,7 +1299,7 @@ function exportCsv() {
 // Track modal sort state
 const modalSort = { col: 'Calculated_Days', dir: 'desc' };
 
-function openDataModal(groupFilter, itemFilter = null) {
+function openDataModal(groupFilter = null, itemFilter = null, customData = null) {
     if (state.processedData.length === 0) return;
 
     const kpiUnit = els.kpiUnit.value;
@@ -1317,7 +1322,9 @@ function openDataModal(groupFilter, itemFilter = null) {
     modalSort.dir = 'desc';
 
     let dataSource = state.processedData;
-    if (groupFilter) {
+    if (customData) {
+        dataSource = customData;
+    } else if (groupFilter) {
         dataSource = dataSource.filter(r => (r[grpCol] || 'Unknown') === groupFilter);
     } else if (itemFilter) {
         dataSource = dataSource.filter(r => (itemCol ? (r[itemCol] || 'Unknown') : 'N/A') === itemFilter);
@@ -1474,6 +1481,16 @@ function attachEventListeners() {
     els.downloadBtn.addEventListener('click', generateExecutiveReport);
     els.downloadCsvBtn.addEventListener('click', exportCsv);
     els.viewDataBtn.addEventListener('click', () => openDataModal());
+
+    const breachesCard = $id('kpi-breaches-card');
+    if (breachesCard) {
+        breachesCard.addEventListener('click', () => {
+            const metricKey = els.kpiUnit.value === 'Days' ? 'Calculated_Days' : 'Calculated_Hours';
+            const targetValue = parseFloat(els.kpiTarget.value);
+            const breaches = state.processedData.filter(row => row._isOpen && row[metricKey] > targetValue);
+            if (breaches.length > 0) openDataModal(null, null, breaches);
+        });
+    }
     if (els.trendGrouping) {
         els.trendGrouping.addEventListener('change', () => {
             const grp = els.trendGrouping.value;
