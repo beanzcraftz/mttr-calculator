@@ -537,6 +537,16 @@ function updateFilterOptions() {
 
     // Always populate Group Filter
     populate(els.groupCol, 'group-filter-dd', 'group-filter-btn', 'selectedGroups');
+
+    const uniqueMonths = [...new Set(state.rawData.map(row => {
+        const d = new Date(row[els.startCol.value]);
+        if (isNaN(d)) return null;
+        const m = (d.getMonth() + 1).toString().padStart(2, '0');
+        return `${d.getFullYear()}-${m}`;
+    }).filter(Boolean))].sort().reverse();
+    const gmBtn = document.getElementById('global-month-btn');
+    const gmDd = document.getElementById('global-month-dd');
+    if (gmBtn && gmDd) buildMultiselect(gmDd, gmBtn, uniqueMonths, 'globalSelectedMonths');
 }
 
 // --- Core Calculation Logic ---
@@ -552,6 +562,16 @@ function calculateMTTR() {
 
     // 0. Apply Module Specific & Group Filters
     let filteredData = [...state.rawData];
+    
+    // Apply Global Date Range (Months) filter
+    if (state.globalDateRange === 'month' && state.globalSelectedMonths && state.globalSelectedMonths.length > 0) {
+        filteredData = filteredData.filter(row => {
+            const d = new Date(row[startCol]);
+            if (isNaN(d)) return false;
+            const m = (d.getMonth() + 1).toString().padStart(2, '0');
+            return state.globalSelectedMonths.includes(`${d.getFullYear()}-${m}`);
+        });
+    }
 
     // Universal Group Filter
     const groupCol = els.groupCol.value;
@@ -1468,6 +1488,29 @@ function attachEventListeners() {
     document.getElementById('filters-card').addEventListener('change', updateCalcBadge);
     els.themeToggle.addEventListener('click', toggleTheme);
     els.backBtn.addEventListener('click', navigateBack);
+
+    // Global Date Range mode toggles
+    const rAll = document.getElementById('range-all-btn');
+    const rMonth = document.getElementById('range-month-btn');
+    const gmms = document.getElementById('global-month-ms');
+    
+    if(rAll && rMonth && gmms) {
+        state.globalDateRange = 'all';
+        state.globalSelectedMonths = [];
+        rAll.addEventListener('click', () => {
+            rAll.classList.add('pill-active');
+            rMonth.classList.remove('pill-active');
+            gmms.classList.add('hidden');
+            state.globalDateRange = 'all';
+        });
+        rMonth.addEventListener('click', () => {
+            rMonth.classList.add('pill-active');
+            rAll.classList.remove('pill-active');
+            gmms.classList.remove('hidden');
+            state.globalDateRange = 'month';
+        });
+        wireMultiselect('global-month-btn', 'global-month-dd');
+    }
 
     els.moduleCards.forEach(card => {
         card.addEventListener('click', () => navigateToModule(card.dataset.module));

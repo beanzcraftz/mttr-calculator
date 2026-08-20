@@ -208,10 +208,16 @@ header p {
 /* Glassmorphism */
 .glass {
     background: var(--bg-card);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.15); box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-    box-shadow: var(--shadow);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    border-left: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.glass:hover {
+    box-shadow: 0 15px 50px -10px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 [data-theme="light"] .glass {
     border: var(--glass-border);
@@ -421,7 +427,7 @@ select:focus, input:focus {
     border-radius: 12px;
     text-align: center;
     position: relative;
-    overflow: hidden;
+    overflow: visible; /* Changed from hidden to allow badge to spill out */
 }
 #kpi-breaches-card:hover {
     transform: translateY(-2px);
@@ -658,13 +664,18 @@ th:nth-child(3), td:nth-child(3) { text-align: right; }
 /* ---- Group Drill-Down Link ---- */
 .group-link {
     cursor: pointer;
-    text-decoration: none;
-    color: inherit;
-    display: block;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    text-underline-offset: 4px;
+    color: var(--primary);
+    display: inline-block;
+    font-weight: 500;
+    transition: var(--transition);
 }
 .group-link:hover {
-    color: var(--primary);
-    text-decoration: underline;
+    color: #60a5fa;
+    text-decoration-style: solid;
+    transform: translateX(2px);
 }
 
 /* ---- Collapsible Section ---- */
