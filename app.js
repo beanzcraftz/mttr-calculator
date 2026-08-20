@@ -552,6 +552,16 @@ function calculateMTTR() {
         }
     }
 
+    // Calculate the 'Export Date' (newest date in the entire file) to use as 'Now' for open tickets
+    let globalMaxDate = 0;
+    state.rawData.forEach(row => {
+        const st = new Date(row[startCol]);
+        if (st && !isNaN(st.getTime()) && st.getTime() > globalMaxDate) globalMaxDate = st.getTime();
+        const et = new Date(row[endCol]);
+        if (et && !isNaN(et.getTime()) && et.getTime() > globalMaxDate) globalMaxDate = et.getTime();
+    });
+    const sheetExportDate = globalMaxDate > 0 ? new Date(globalMaxDate) : new Date();
+
     // 1. Filter by timeframe based on Start Date
     if (timeframe === 'Custom Range') {
         const customStartStr = els.customStartDate.value;
@@ -570,15 +580,7 @@ function calculateMTTR() {
             }
         }
     } else if (timeframe !== 'All Data') {
-        // Find max date to act as "Today" for relative filtering (matches Python logic)
-        let maxDate = 0;
-        filteredData.forEach(row => {
-            const dt = new Date(row[startCol]);
-            if (dt && !isNaN(dt.getTime()) && dt.getTime() > maxDate) maxDate = dt.getTime();
-        });
-
-        const refDate = new Date(maxDate);
-
+        const refDate = new Date(sheetExportDate);
         const daysMap = { "Today": 0, "Yesterday": 1, "Last 7 Days": 7, "Last 30 Days": 30, "Last 90 Days": 90 };
         const daysToSubtract = daysMap[timeframe] || 0;
 
@@ -596,18 +598,26 @@ function calculateMTTR() {
         });
     }
 
-    // 2. Apply 8-Hour Logic
+    // 2. Apply 8-Hour Logic & Handle Open Tickets
     state.processedData = [];
 
     filteredData.forEach(row => {
         const start = new Date(row[startCol]);
-        const end = new Date(row[endCol]);
+        
+        // Skip if start date is completely invalid
+        if (!start || isNaN(start.getTime())) return;
 
-        // Skip invalid dates
-        if (!start || isNaN(start.getTime()) || !end || isNaN(end.getTime())) return;
+        let end = new Date(row[endCol]);
+        let isOpen = false;
+        
+        // If there's no closed date, calculate age up to the date the export was pulled
+        if (!row[endCol] || isNaN(end.getTime())) {
+            end = sheetExportDate;
+            isOpen = true;
+        }
 
         const durationMs = end.getTime() - start.getTime();
-        if (durationMs < 0) return; // Ignore negative durations
+        if (durationMs < 0) return; // Ignore time-travel tickets
 
         const totalHours = durationMs / (1000 * 60 * 60);
         let days = Math.floor(totalHours / 24);
@@ -617,10 +627,10 @@ function calculateMTTR() {
             days += 1;
         }
 
-        // Create new object to prevent mutating raw
         state.processedData.push({
             ...row,
             _startObj: start,
+            _isOpen: isOpen,
             Calculated_Days: Math.max(0, days),
             Calculated_Hours: totalHours
         });
@@ -924,7 +934,8 @@ function renderTrendChart(targetLineValue, kpiUnit, metricKey) {
                 const row = context.raw._raw;
                 const val = kpiUnit === 'Days' ? Math.round(context.parsed.y) : context.parsed.y.toFixed(1);
                 const grp = row[els.groupCol.value] || 'N/A';
-                return [`  ${kpiUnit}: ${val}`, `  Group: ${grp}`];
+                const status = row._isOpen ? ' ⏳ (Ongoing)' : '';
+                return [`  ${kpiUnit}: ${val}${status}`, `  Group: ${grp}`];
             }
         };
     } else {
@@ -996,7 +1007,7 @@ function renderTrendChart(targetLineValue, kpiUnit, metricKey) {
                     borderColor: '#3b82f6',
                     backgroundColor: 'rgba(59, 130, 246, 0.1)',
                     borderWidth: 2,
-                    pointBackgroundColor: '#3b82f6',
+                    pointBackgroundColor: grouping === 'all' ? chartData.map(d => d._raw && d._raw._isOpen ? '#f59e0b' : '#3b82f6') : '#3b82f6',
                     pointRadius: grouping === 'all' ? 3 : 5,
                     pointHoverRadius: 7,
                     fill: true,
