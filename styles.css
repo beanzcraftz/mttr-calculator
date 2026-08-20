@@ -532,7 +532,7 @@ th:nth-child(3), td:nth-child(3) { text-align: right; }
     font-size: 0.875rem; cursor: pointer; display: flex;
     justify-content: space-between; align-items: center; transition: var(--transition);
 }
-.multiselect-btn::after { content: '?'; font-size: 0.75rem; color: var(--text-muted); margin-left: 0.5rem; flex-shrink: 0; }
+.multiselect-btn::after { content: '▼'; font-size: 0.6rem; color: var(--text-muted); margin-left: 0.5rem; flex-shrink: 0; }
 .multiselect-btn:hover, .multiselect-btn.open { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(59,130,246,0.2); }
 [data-theme="light"] .multiselect-btn { background-color: white; }
 .multiselect-dropdown {
