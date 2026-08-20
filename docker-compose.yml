@@ -1,9 +1,7 @@
 services:
   mttr-app:
     build: .
-    env_file:
-      - .env
     container_name: servicenow-mttr-tool
     ports:
-      - "8501:8501"
+      - "8501:80" # Using 8501 to replace the old app, routing to Nginx port 80
     restart: always
