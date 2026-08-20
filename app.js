@@ -26,6 +26,47 @@ const state = {
     calcMode: 'mean', // 'mean' or 'median'
     selectedMonths: []
 };
+let lastRunHash = '';
+
+function getSelectionsHash() {
+    return JSON.stringify({
+        startCol: els.startCol.value,
+        endCol: els.endCol.value,
+        groupCol: els.groupCol.value,
+        timeframe: els.timeframe.value,
+        customStart: els.customStartDate.value,
+        customEnd: els.customEndDate.value,
+        target: els.kpiTarget.value,
+        unit: els.kpiUnit.value,
+        pri: state.selectedPriorities,
+        type: state.selectedTypes,
+        risk: state.selectedRisks,
+        grp: state.selectedGroups,
+        req: state.selectedReqItems,
+        reqS: state.selectedReqStates,
+        close: state.selectedCloseCodes,
+        rating: state.selectedRatings,
+        mon: state.selectedMonths
+    });
+}
+
+function updateCalcBadge() {
+    const currentHash = getSelectionsHash();
+    let badge = document.getElementById('calc-badge');
+    if (lastRunHash && currentHash !== lastRunHash) {
+        if (!badge) {
+            badge = document.createElement('span');
+            badge.id = 'calc-badge';
+            badge.className = 'kpi-badge badge-warning ml-2';
+            badge.style.fontSize = '0.7em';
+            badge.textContent = 'Filters active';
+            els.calculateBtn.appendChild(badge);
+        }
+    } else {
+        if (badge) badge.remove();
+    }
+}
+
 
 // --- Utility: debounce ---
 function debounce(fn, ms) {
@@ -842,7 +883,10 @@ function renderDashboard() {
 
     // 3. Render Charts
     renderTrendChart(targetValue, kpiUnit, metricKey);
-    renderHistogramChart(kpiUnit, metricKey);
+    
+    lastRunHash = getSelectionsHash();
+    updateCalcBadge();
+renderHistogramChart(kpiUnit, metricKey);
 }
 
 
@@ -1420,6 +1464,8 @@ function closeDataModal() {
 
 // --- Events ---
 function attachEventListeners() {
+    document.getElementById('settings-card').addEventListener('change', updateCalcBadge);
+    document.getElementById('filters-card').addEventListener('change', updateCalcBadge);
     els.themeToggle.addEventListener('click', toggleTheme);
     els.backBtn.addEventListener('click', navigateBack);
 
