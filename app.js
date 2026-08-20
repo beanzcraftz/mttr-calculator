@@ -26,7 +26,26 @@ const state = {
     calcMode: 'mean' // 'mean' or 'median'
 };
 
-// DOM Elements
+// --- Utility: debounce ---
+function debounce(fn, ms) {
+    let timer;
+    return function (...args) {
+        clearTimeout(timer);
+        timer = setTimeout(() => fn.apply(this, args), ms);
+    };
+}
+
+// Auto-recalculate on filter change if data already loaded
+// Defined here so buildMultiselect can reference it; calculateMTTR defined later
+const autoRecalc = debounce(() => {
+    if (state.processedData.length > 0) calculateMTTR();
+}, 300);
+
+// Safe element getter — queries fresh each call, never returns stale null from parse-time
+function $id(id) { return document.getElementById(id); }
+function $q(sel) { return document.querySelector(sel); }
+
+// DOM Elements (parse-time cache for stable elements only)
 const els = {
     themeToggle: document.getElementById('theme-toggle'),
     sunIcon: document.querySelector('.sun-icon'),
@@ -70,7 +89,7 @@ const els = {
     changeFilters: document.getElementById('change-filters'),
     requestFilters: document.getElementById('request-filters'),
     surveyFilters: document.getElementById('survey-filters'),
-    
+
     // Select dropdowns for config
     priorityCol: document.getElementById('priority-col'),
     typeCol: document.getElementById('type-col'),
@@ -93,16 +112,11 @@ const els = {
     kpiVolume: document.getElementById('kpi-volume'),
     statusBadge: document.getElementById('status-badge'),
 
-    // Tables
+    // Tables (group) — stable elements, safe to cache
     slowTableBody: document.querySelector('#slow-table tbody'),
     fastTableBody: document.querySelector('#fast-table tbody'),
     outlierTableBody: document.querySelector('#outlier-table tbody'),
-    slowItemTableBody: document.querySelector('#slow-item-table tbody'),
-    fastItemTableBody: document.querySelector('#fast-item-table tbody'),
-    outlierItemTableBody: document.querySelector('#outlier-item-table tbody'),
-    itemTh1: document.getElementById('item-th-1'),
-    itemTh2: document.getElementById('item-th-2'),
-    itemTh3: document.getElementById('item-th-3'),
+    // NOTE: item tables queried fresh in renderDashboard() to avoid null from old HTML builds
     unitThs: document.querySelectorAll('.unit-th'),
 
     kpiAvgTitle: document.getElementById('kpi-avg-title'),
@@ -382,6 +396,7 @@ function buildMultiselect(ddEl, btnEl, values, stateKey) {
             }
             const count = state[stateKey].length;
             btnEl.textContent = count === 0 ? 'All' : `${count} Selected`;
+            autoRecalc(); // ← auto re-run whenever a filter checkbox changes
         });
         label.appendChild(cb);
         label.appendChild(document.createTextNode(val));
@@ -394,6 +409,7 @@ function buildMultiselect(ddEl, btnEl, values, stateKey) {
         checkboxes.forEach(cb => cb.checked = true);
         state[stateKey] = [...values];
         btnEl.textContent = `${values.length} Selected`;
+        autoRecalc();
     });
 
     clearAllBtn.addEventListener('click', (e) => {
@@ -402,6 +418,7 @@ function buildMultiselect(ddEl, btnEl, values, stateKey) {
         checkboxes.forEach(cb => cb.checked = false);
         state[stateKey] = [];
         btnEl.textContent = 'All';
+        autoRecalc();
     });
 }
 
@@ -620,17 +637,31 @@ function renderDashboard() {
     const grpCol = els.groupCol.value;
     const useMedian = state.calcMode === 'median';
 
-    // Helper to determine the "Item" column
+    // Helper: smart column name match
+    const findCol = (kws) => state.columns.find(c => kws.some(kw => c.toLowerCase().includes(kw)));
+
+    // Determine the "Item" column — prefer configured select value, fallback to smart match
     let itemCol = '';
     let itemLabel = 'Item / Category';
-    if (state.currentModule === 'Request') { itemCol = els.reqItemCol.value; itemLabel = 'Item'; }
-    else if (state.currentModule === 'Incident') { itemCol = els.priorityCol.value; itemLabel = 'Priority'; }
-    else if (state.currentModule === 'Change') { itemCol = els.typeCol.value; itemLabel = 'Type'; }
-    else if (state.currentModule === 'Feedback' || state.currentModule === 'Survey') { itemCol = els.ratingCol.value; itemLabel = 'Rating'; }
+    if (state.currentModule === 'Request') {
+        itemLabel = 'Item';
+        itemCol = els.reqItemCol.value || findCol(['item', 'catalog', 'parent item', 'request type']) || '';
+    } else if (state.currentModule === 'Incident') {
+        itemLabel = 'Priority';
+        itemCol = els.priorityCol.value || findCol(['priority']) || '';
+    } else if (state.currentModule === 'Change') {
+        itemLabel = 'Type';
+        itemCol = els.typeCol.value || findCol(['type', 'category']) || '';
+    } else if (state.currentModule === 'Feedback' || state.currentModule === 'Survey') {
+        itemLabel = 'Rating';
+        itemCol = els.ratingCol.value || findCol(['rating', 'score', 'csat']) || '';
+    }
 
-    if (els.itemTh1) els.itemTh1.textContent = itemLabel;
-    if (els.itemTh2) els.itemTh2.textContent = itemLabel;
-    if (els.itemTh3) els.itemTh3.textContent = itemLabel;
+    // Update item table headers — query fresh each time (safe even if elements don't exist yet)
+    ['item-th-1', 'item-th-2', 'item-th-3'].forEach(id => {
+        const el = $id(id);
+        if (el) el.textContent = itemLabel;
+    });
 
     // 1. Calculate KPIs
     const total = state.processedData.length;
@@ -639,7 +670,7 @@ function renderDashboard() {
 
     const groupValMap = {};
     const groupHoursMap = {};
-    
+
     const itemValMap = {};
     const itemHoursMap = {};
 
@@ -652,11 +683,16 @@ function renderDashboard() {
         groupValMap[grp].push(row[metricKey]);
         groupHoursMap[grp].push(row['Calculated_Hours']);
 
-        const itm = itemCol ? (row[itemCol] || 'Unknown') : 'N/A';
-        if (!itemValMap[itm]) itemValMap[itm] = [];
-        if (!itemHoursMap[itm]) itemHoursMap[itm] = [];
-        itemValMap[itm].push(row[metricKey]);
-        itemHoursMap[itm].push(row['Calculated_Hours']);
+        // Only bucket by item if we have a valid column
+        const itm = (itemCol && row[itemCol] != null && row[itemCol] !== '')
+            ? String(row[itemCol])
+            : null;
+        if (itm) {
+            if (!itemValMap[itm]) itemValMap[itm] = [];
+            if (!itemHoursMap[itm]) itemHoursMap[itm] = [];
+            itemValMap[itm].push(row[metricKey]);
+            itemHoursMap[itm].push(row['Calculated_Hours']);
+        }
     });
 
     const allHours = state.processedData.map(r => r['Calculated_Hours']);
@@ -744,15 +780,17 @@ function renderDashboard() {
     renderTable(els.slowTableBody, slowGroups, 'group');
     renderTable(els.fastTableBody, fastGroups, 'group');
     renderTable(els.outlierTableBody, outlierGroups, 'group');
-    
-    renderTable(els.slowItemTableBody, slowItems, 'item');
-    renderTable(els.fastItemTableBody, fastItems, 'item');
-    renderTable(els.outlierItemTableBody, outlierItems, 'item');
+
+    // Fresh DOM queries for item tables — avoids null from old docker build HTML
+    renderTable($q('#slow-item-table tbody'), slowItems, 'item');
+    renderTable($q('#fast-item-table tbody'), fastItems, 'item');
+    renderTable($q('#outlier-item-table tbody'), outlierItems, 'item');
 
     // 3. Render Charts
     renderTrendChart(targetValue, kpiUnit, metricKey);
     renderHistogramChart(kpiUnit, metricKey);
 }
+
 
 function renderTable(tbody, dataArr, drillType = 'group') {
     if (!tbody) return;
