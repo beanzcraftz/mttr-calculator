@@ -406,7 +406,7 @@ function buildMultiselect(ddEl, btnEl, values, stateKey) {
                 state[stateKey] = state[stateKey].filter(v => v !== val);
             }
             const count = state[stateKey].length;
-            btnEl.textContent = count === 0 ? 'All' : `${count} Selected`;
+            btnEl.innerHTML = count === 0 ? 'All <span style="font-size:0.6rem; opacity:0.5;">▼</span>' : `${count} Selected <span style="font-size:0.6rem; opacity:0.5;">▼</span>`;
             autoRecalc();
         });
         label.appendChild(cb);
@@ -426,7 +426,7 @@ function buildMultiselect(ddEl, btnEl, values, stateKey) {
         e.preventDefault(); e.stopPropagation();
         checkboxes.forEach(cb => cb.checked = true);
         state[stateKey] = [...values];
-        btnEl.textContent = `${values.length} Selected`;
+        btnEl.innerHTML = `${values.length} Selected <span style="font-size:0.6rem; opacity:0.5;">▼</span>`;
         autoRecalc();
     });
 
@@ -434,7 +434,7 @@ function buildMultiselect(ddEl, btnEl, values, stateKey) {
         e.preventDefault(); e.stopPropagation();
         checkboxes.forEach(cb => cb.checked = false);
         state[stateKey] = [];
-        btnEl.textContent = 'All';
+        btnEl.innerHTML = 'All <span style="font-size:0.6rem; opacity:0.5;">▼</span>';
         autoRecalc();
     });
 }

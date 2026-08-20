@@ -437,12 +437,14 @@ select:focus, input:focus {
 /* Tables */
 .tables-row {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     gap: 1.5rem;
 }
 
 .table-container {
     overflow-x: auto;
+    max-height: 350px;
+    overflow-y: auto;
 }
 
 table {
