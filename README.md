@@ -1,60 +1,52 @@
 # 📊 ServiceNow MTTR Calculator
 
-A streamlined web dashboard built with Python and Streamlit to calculate **Mean Time to Resolution (MTTR)** from ServiceNow Excel exports.
+A lightning-fast, client-side web dashboard to calculate **Mean Time to Resolution (MTTR)** from ServiceNow Excel exports.
 
-This tool applies a custom **8-hour logic** (rounding up any resolution time over 8 hours to a full day) to match specific business reporting requirements.
-
----
-
-## 🚀 Version History
-
-### **V2.0 (Latest Release)**
-* **Executive HTML Reporting:** Added "Download Executive Report" feature which generates a professional, auto-aligned HTML report with performance badges and trend visualizations.
-* **Smart Volume Thresholds:** "Best Performers" now requires a minimum of **3 tickets** handled to ensure statistical significance (prevents "1-hit wonders").
-* **Interactive Investigative Maps:** Upgraded static charts to Plotly Interactive Trendlines with KPI target legends and detailed hover-data (Ticket ID/Group).
-* **Enhanced UI/UX:** Added "Back to Selection" navigation and rounded performance metrics for cleaner dashboard viewing.
-* **Deployment Hardening:** Standardized Docker environment and streamlined column mapping for all 5 modules.
-
-### **V1.0 (Initial Release)**
-* **8-Hour Logic:** Core conversion of timestamps into business-aligned "Calculated Days."
-* **Multi-Module Support:** Specific mapping for Incidents, Requests, Changes, Feedback, and Surveys.
-* **Secure Access:** Built-in password protection gatekeeper via environment variables.
-* **Dockerized:** Fully containerized for one-command deployment.
+Originally built in Python, this tool was completely re-architected in **V3.0** into a standalone HTML/JS web application running on Nginx. This means all data parsing is done instantly in your browser, resulting in massive performance gains and zero backend bottlenecks.
 
 ---
 
-## 🛠️ Deployment Guide
+## ✨ Version History
+
+### **V3.0 (Latest Release)**
+* **Client-Side Architecture:** Rebuilt entirely in HTML/JS. Data never leaves your browser, ensuring maximum privacy and instant calculation speeds.
+* **Smart Column Detection:** The app now "peeks" into your data to automatically map columns. It actively detects and ignores columns containing RITM/INC IDs when searching for your Catalog Items.
+* **Ongoing Tickets Analysis:** Tickets without a 'Closed' date are no longer ignored. The app calculates their current age based on the export date and plots them in orange so you can track SLA bleed.
+* **Active Breaches KPI:** A new clickable KPI card instantly filters the data grid to show all ongoing tickets that have already breached your SLA target.
+* **Grid Dashboard Layout:** Improved responsive UI using CSS Grids to eliminate vertical scrolling, featuring side-by-side grouped tables and dynamic Chart.js interactive graphs.
+* **Executive Snapshots:** Download high-resolution PNG snapshots of your dashboard layout for reporting.
+
+### **V2.0 & V1.0 (Legacy Python)**
+* *Deprecated:* The original Streamlit Python implementation has been retired in favor of the static web app architecture.
+
+---
+
+## 🚀 Deployment Guide
+
+This app is fully containerized using Nginx to serve the static files.
 
 ### **1. Clone the repository**
+```bash
 git clone https://github.com/beanp02/mttr-calculator.git
 cd mttr-calculator
+```
 
-### **2. Create your Secret Key**
-Create a hidden file to hold your password. This keeps it safe and private:
-nano .env
+### **2. Launch the App**
+```bash
+docker-compose up -d --build
+```
+The app will be available at `http://<your-ip>:8501`.
 
-Type the following inside the file, then save and exit (Ctrl+O, Enter, Ctrl+X):
-APP_PASSWORD=YourChosenPasswordHere
-
-### **3. Launch the App**
-docker compose up -d --build
-
----
-
-## 📂 Required Excel Columns
-The ServiceNow export should contain headers that the app can automatically map, though you can manually adjust them in the settings:
-
-| Module | Start Column | End Column |
-| :--- | :--- | :--- |
-| **Incident** | Created | Resolved at |
-| **Request** | Created | Closed |
-| **Change** | Actual start date | Actual end date |
-| **Feedback** | Start | End |
-| **Survey** | Taken on | Action completed |
+*(Note: We maintain port 8501 in the docker-compose mapping to ensure seamless transition from the old Streamlit deployment).*
 
 ---
 
-## 🔒 Security Notes
-This app uses an .env file to manage access.
+## 🛠️ Usage & Tips
 
----
+1. **Upload Data:** Export your tickets from ServiceNow as an Excel (`.xlsx`) or CSV file and drop it into the app.
+2. **Configuration:** The app will attempt to auto-map your Start, End, Group, and Item columns.
+3. **Filtering:** Use the left sidebar to slice your data by Assignment Group, Category, or timeframe (Last 30 Days, Last 90 Days, etc.).
+4. **Analysis:** 
+   - Hover over the **Trend Chart** to see weekly/monthly aggregations.
+   - Click the **🔥 Active Breaches** card to instantly view open tickets failing your SLA.
+   - Use the **By Group / By Item** tabs to see your best and worst performers without scrolling.
