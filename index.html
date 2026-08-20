@@ -498,6 +498,67 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Item Tables Row -->
+                    <div class="tables-row" style="margin-top:1.5rem;">
+                        <div class="card glass border-red">
+                            <h3 class="text-red">🚨 Slowest Items</h3>
+                            <p class="text-xs opacity-70 mb-2">Ranked by total impact (Avg × Volume)</p>
+                            <div class="table-container">
+                                <table id="slow-item-table">
+                                    <thead>
+                                        <tr>
+                                            <th id="item-th-1">Item / Category</th>
+                                            <th class="unit-th">Avg Days</th>
+                                            <th>Volume</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="card glass border-green">
+                            <h3 class="text-green">⭐ Best Performing Items</h3>
+                            <p class="text-xs opacity-70 mb-2">(Min 3 tickets)</p>
+                            <div class="table-container">
+                                <table id="fast-item-table">
+                                    <thead>
+                                        <tr>
+                                            <th id="item-th-2">Item / Category</th>
+                                            <th class="unit-th">Avg Days</th>
+                                            <th>Volume</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Item Outliers Row -->
+                    <div id="item-outliers-row" style="margin-top:1rem;">
+                        <div class="card glass border-orange" style="width:100%;">
+                            <h3 class="text-orange">⚠️ Item Outliers <span
+                                    style="font-size:0.75rem; font-weight:400; opacity:0.7; margin-left:0.5rem;">(Low
+                                    volume, high MTTR — 1 or 2 tickets only)</span></h3>
+                            <div class="table-container">
+                                <table id="outlier-item-table">
+                                    <thead>
+                                        <tr>
+                                            <th id="item-th-3">Item / Category</th>
+                                            <th class="unit-th">Avg Days</th>
+                                            <th>Volume</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Empty State -->

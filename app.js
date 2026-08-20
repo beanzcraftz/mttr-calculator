@@ -97,6 +97,12 @@ const els = {
     slowTableBody: document.querySelector('#slow-table tbody'),
     fastTableBody: document.querySelector('#fast-table tbody'),
     outlierTableBody: document.querySelector('#outlier-table tbody'),
+    slowItemTableBody: document.querySelector('#slow-item-table tbody'),
+    fastItemTableBody: document.querySelector('#fast-item-table tbody'),
+    outlierItemTableBody: document.querySelector('#outlier-item-table tbody'),
+    itemTh1: document.getElementById('item-th-1'),
+    itemTh2: document.getElementById('item-th-2'),
+    itemTh3: document.getElementById('item-th-3'),
     unitThs: document.querySelectorAll('.unit-th'),
 
     kpiAvgTitle: document.getElementById('kpi-avg-title'),
@@ -614,13 +620,28 @@ function renderDashboard() {
     const grpCol = els.groupCol.value;
     const useMedian = state.calcMode === 'median';
 
+    // Helper to determine the "Item" column
+    let itemCol = '';
+    let itemLabel = 'Item / Category';
+    if (state.currentModule === 'Request') { itemCol = els.reqItemCol.value; itemLabel = 'Item'; }
+    else if (state.currentModule === 'Incident') { itemCol = els.priorityCol.value; itemLabel = 'Priority'; }
+    else if (state.currentModule === 'Change') { itemCol = els.typeCol.value; itemLabel = 'Type'; }
+    else if (state.currentModule === 'Feedback' || state.currentModule === 'Survey') { itemCol = els.ratingCol.value; itemLabel = 'Rating'; }
+
+    if (els.itemTh1) els.itemTh1.textContent = itemLabel;
+    if (els.itemTh2) els.itemTh2.textContent = itemLabel;
+    if (els.itemTh3) els.itemTh3.textContent = itemLabel;
+
     // 1. Calculate KPIs
     const total = state.processedData.length;
     const allVals = state.processedData.map(r => r[metricKey]);
     let metTarget = 0;
 
-    const groupValMap = {}; // group -> array of metricKey values
-    const groupHoursMap = {}; // group -> array of raw hours
+    const groupValMap = {};
+    const groupHoursMap = {};
+    
+    const itemValMap = {};
+    const itemHoursMap = {};
 
     state.processedData.forEach(row => {
         if (row[metricKey] <= targetValue) metTarget++;
@@ -628,9 +649,14 @@ function renderDashboard() {
         const grp = row[grpCol] || 'Unknown';
         if (!groupValMap[grp]) groupValMap[grp] = [];
         if (!groupHoursMap[grp]) groupHoursMap[grp] = [];
-
         groupValMap[grp].push(row[metricKey]);
         groupHoursMap[grp].push(row['Calculated_Hours']);
+
+        const itm = itemCol ? (row[itemCol] || 'Unknown') : 'N/A';
+        if (!itemValMap[itm]) itemValMap[itm] = [];
+        if (!itemHoursMap[itm]) itemHoursMap[itm] = [];
+        itemValMap[itm].push(row[metricKey]);
+        itemHoursMap[itm].push(row['Calculated_Hours']);
     });
 
     const allHours = state.processedData.map(r => r['Calculated_Hours']);
@@ -663,69 +689,73 @@ function renderDashboard() {
         els.statusBadge.className = "kpi-badge badge-danger";
     }
 
-    // 2. Process Group Stats for Tables
-    const grpArr = Object.keys(groupValMap).map(grp => {
-        const vals = groupValMap[grp];
-        const hourVals = groupHoursMap[grp];
-
-        let rawResult;
-        if (useMedian) {
-            const medHrs = calcMedian(hourVals);
-            rawResult = kpiUnit === 'Days' ? (medHrs / 24) : medHrs;
-        } else {
-            rawResult = vals.reduce((a, b) => a + b, 0) / vals.length;
-        }
-
-        const impact = vals.reduce((a, b) => a + b, 0); // always sum for impact ranking
-        return {
-            name: grp,
-            avg: kpiUnit === 'Days'
-                ? (useMedian ? rawResult.toFixed(1) : Math.round(rawResult))
-                : rawResult.toFixed(1),
-            vol: vals.length,
-            impact
-        };
-    });
-
-    // Slowest Groups: above KPI target only, sorted by total impact (Avg × Volume)
-    const slowGroups = [...grpArr]
-        .filter(g => Number(g.avg) > targetValue)
-        .sort((a, b) => b.impact - a.impact)
-        .slice(0, 5);
-
-    // Best Performers (Ascending average, secondary descending volume, min vol = 3)
-    let fastGroups = [...grpArr].filter(g => g.vol >= 3).sort((a, b) => {
-        const avgA = Number(a.avg);
-        const avgB = Number(b.avg);
-        if (avgA === avgB) return b.vol - a.vol;
-        return avgA - avgB;
-    }).slice(0, 5);
-    if (fastGroups.length === 0) {
-        // Fallback if no groups have volume >= 3
-        fastGroups = [...grpArr].sort((a, b) => {
-            const avgA = Number(a.avg);
-            const avgB = Number(b.avg);
-            if (avgA === avgB) return b.vol - a.vol;
-            return avgA - avgB;
-        }).slice(0, 5);
+    // Process generic array building for maps
+    function processMap(valMap, hrMap) {
+        return Object.keys(valMap).map(key => {
+            const vals = valMap[key];
+            const hourVals = hrMap[key];
+            let rawResult;
+            if (useMedian) {
+                const medHrs = calcMedian(hourVals);
+                rawResult = kpiUnit === 'Days' ? (medHrs / 24) : medHrs;
+            } else {
+                rawResult = vals.reduce((a, b) => a + b, 0) / vals.length;
+            }
+            const impact = vals.reduce((a, b) => a + b, 0);
+            return {
+                name: key,
+                avg: kpiUnit === 'Days' ? (useMedian ? rawResult.toFixed(1) : Math.round(rawResult)) : rawResult.toFixed(1),
+                vol: vals.length,
+                impact
+            };
+        });
     }
 
-    // Outliers: low volume (1-2 tickets) with high avg MTTR, sorted by avg descending
-    const outlierGroups = [...grpArr]
-        .filter(g => g.vol <= 2)
-        .sort((a, b) => Number(b.avg) - Number(a.avg))
-        .slice(0, 5);
+    // 2. Process Group Stats for Tables
+    const grpArr = processMap(groupValMap, groupHoursMap);
+    const slowGroups = [...grpArr].filter(g => Number(g.avg) > targetValue).sort((a, b) => b.impact - a.impact).slice(0, 5);
+    let fastGroups = [...grpArr].filter(g => g.vol >= 3).sort((a, b) => {
+        const avgA = Number(a.avg); const avgB = Number(b.avg);
+        if (avgA === avgB) return b.vol - a.vol; return avgA - avgB;
+    }).slice(0, 5);
+    if (fastGroups.length === 0) {
+        fastGroups = [...grpArr].sort((a, b) => {
+            const avgA = Number(a.avg); const avgB = Number(b.avg);
+            if (avgA === avgB) return b.vol - a.vol; return avgA - avgB;
+        }).slice(0, 5);
+    }
+    const outlierGroups = [...grpArr].filter(g => g.vol <= 2).sort((a, b) => Number(b.avg) - Number(a.avg)).slice(0, 5);
 
-    renderTable(els.slowTableBody, slowGroups);
-    renderTable(els.fastTableBody, fastGroups);
-    renderTable(els.outlierTableBody, outlierGroups);
+    // 2.5 Process Item Stats for Tables
+    const itmArr = processMap(itemValMap, itemHoursMap);
+    const slowItems = [...itmArr].filter(g => Number(g.avg) > targetValue).sort((a, b) => b.impact - a.impact).slice(0, 5);
+    let fastItems = [...itmArr].filter(g => g.vol >= 3).sort((a, b) => {
+        const avgA = Number(a.avg); const avgB = Number(b.avg);
+        if (avgA === avgB) return b.vol - a.vol; return avgA - avgB;
+    }).slice(0, 5);
+    if (fastItems.length === 0) {
+        fastItems = [...itmArr].sort((a, b) => {
+            const avgA = Number(a.avg); const avgB = Number(b.avg);
+            if (avgA === avgB) return b.vol - a.vol; return avgA - avgB;
+        }).slice(0, 5);
+    }
+    const outlierItems = [...itmArr].filter(g => g.vol <= 2).sort((a, b) => Number(b.avg) - Number(a.avg)).slice(0, 5);
+
+    renderTable(els.slowTableBody, slowGroups, 'group');
+    renderTable(els.fastTableBody, fastGroups, 'group');
+    renderTable(els.outlierTableBody, outlierGroups, 'group');
+    
+    renderTable(els.slowItemTableBody, slowItems, 'item');
+    renderTable(els.fastItemTableBody, fastItems, 'item');
+    renderTable(els.outlierItemTableBody, outlierItems, 'item');
 
     // 3. Render Charts
     renderTrendChart(targetValue, kpiUnit, metricKey);
     renderHistogramChart(kpiUnit, metricKey);
 }
 
-function renderTable(tbody, dataArr) {
+function renderTable(tbody, dataArr, drillType = 'group') {
+    if (!tbody) return;
     tbody.innerHTML = '';
     if (dataArr.length === 0) {
         tbody.innerHTML = '<tr><td colspan="3" class="text-center">No data available</td></tr>';
@@ -739,7 +769,10 @@ function renderTable(tbody, dataArr) {
         link.className = 'group-link';
         link.textContent = item.name;
         link.title = `Click to drill into ${item.name}`;
-        link.addEventListener('click', () => openDataModal(item.name));
+        link.addEventListener('click', () => {
+            if (drillType === 'group') openDataModal(item.name, null);
+            else openDataModal(null, item.name);
+        });
         nameCell.appendChild(link);
 
         const avgCell = document.createElement('td');
@@ -1098,7 +1131,7 @@ function exportCsv() {
 // Track modal sort state
 const modalSort = { col: 'Calculated_Days', dir: 'desc' };
 
-function openDataModal(groupFilter) {
+function openDataModal(groupFilter, itemFilter = null) {
     if (state.processedData.length === 0) return;
 
     const kpiUnit = els.kpiUnit.value;
@@ -1109,22 +1142,33 @@ function openDataModal(groupFilter) {
     const startCol = els.startCol.value;
     const endCol = els.endCol.value;
 
+    let itemCol = '';
+    let itemLabel = 'Item / Category';
+    if (state.currentModule === 'Request') { itemCol = els.reqItemCol.value; itemLabel = 'Item'; }
+    else if (state.currentModule === 'Incident') { itemCol = els.priorityCol.value; itemLabel = 'Priority'; }
+    else if (state.currentModule === 'Change') { itemCol = els.typeCol.value; itemLabel = 'Type'; }
+    else if (state.currentModule === 'Feedback' || state.currentModule === 'Survey') { itemCol = els.ratingCol.value; itemLabel = 'Rating'; }
+
     // Reset sort to default when opening
     modalSort.col = metricKey;
     modalSort.dir = 'desc';
 
-    const dataSource = groupFilter
-        ? state.processedData.filter(r => (r[grpCol] || 'Unknown') === groupFilter)
-        : state.processedData;
+    let dataSource = state.processedData;
+    if (groupFilter) {
+        dataSource = dataSource.filter(r => (r[grpCol] || 'Unknown') === groupFilter);
+    } else if (itemFilter) {
+        dataSource = dataSource.filter(r => (itemCol ? (r[itemCol] || 'Unknown') : 'N/A') === itemFilter);
+    }
 
     // Store on state so renderModalRows can access
     state._modalData = dataSource;
-    state._modalMeta = { kpiUnit, metricKey, targetValue, idCol, grpCol, startCol, endCol };
+    state._modalMeta = { kpiUnit, metricKey, targetValue, idCol, grpCol, startCol, endCol, itemCol };
 
     // Build sortable header
     const cols = [
         { key: idCol, label: 'Ticket ID' },
         { key: grpCol, label: 'Group' },
+        { key: itemCol || 'Item', label: itemLabel },
         { key: startCol, label: 'Opened' },
         { key: endCol, label: 'Resolved' },
         { key: metricKey, label: kpiUnit }
@@ -1157,13 +1201,17 @@ function openDataModal(groupFilter) {
     renderModalRows();
 
     const breachCount = dataSource.filter(r => r[metricKey] > targetValue).length;
-    els.modalTitle.textContent = groupFilter ? `📋 ${groupFilter}` : `📋 Raw Ticket Data — ${state.currentModule}`;
+    let titleStr = `📋 Raw Ticket Data — ${state.currentModule}`;
+    if (groupFilter) titleStr = `📋 ${groupFilter}`;
+    else if (itemFilter) titleStr = `📋 ${itemFilter}`;
+    
+    els.modalTitle.textContent = titleStr;
     els.modalSubheader.textContent = `${dataSource.length} tickets | ${breachCount} breached KPI target (${targetValue} ${kpiUnit}) | Red rows = SLA breach`;
     els.modalOverlay.classList.remove('hidden');
 }
 
 function renderModalRows() {
-    const { kpiUnit, metricKey, targetValue, idCol, grpCol, startCol, endCol } = state._modalMeta;
+    const { kpiUnit, metricKey, targetValue, idCol, grpCol, startCol, endCol, itemCol } = state._modalMeta;
     const data = state._modalData;
 
     const sorted = [...data].sort((a, b) => {
@@ -1186,6 +1234,7 @@ function renderModalRows() {
         tr.innerHTML = `
             <td>${row[idCol] || 'N/A'}</td>
             <td>${row[grpCol] || 'N/A'}</td>
+            <td>${itemCol ? (row[itemCol] || 'N/A') : 'N/A'}</td>
             <td>${row[startCol] ? new Date(row[startCol]).toLocaleDateString() : 'N/A'}</td>
             <td>${row[endCol] ? new Date(row[endCol]).toLocaleDateString() : 'N/A'}</td>
             <td class="${isBreach ? 'breach-val' : ''}">${displayVal}</td>
