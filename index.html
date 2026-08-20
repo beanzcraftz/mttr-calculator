@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ServiceNow MTTR Dashboard</title>
-    <link rel="stylesheet" href="styles.css?v=18">
+    <link rel="stylesheet" href="styles.css?v=19">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- SheetJS for client-side Excel parsing -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -414,11 +414,20 @@
                     <div class="card glass chart-card">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
                             <h3 style="margin-bottom: 0;">📈 Resolution Trend vs KPI</h3>
-                            <select id="trend-grouping" style="width: auto; padding: 0.25rem 0.5rem; border-radius: 4px; border: 1px solid var(--border); background: rgba(0, 0, 0, 0.2); color: var(--text-main); font-size: 0.8rem;">
-                                <option value="day" selected>Daily Ticks</option>
-                                <option value="week">Weekly Ticks</option>
-                                <option value="month">Monthly Ticks</option>
-                            </select>
+                            <div style="display:flex; flex-direction:column; gap:0.35rem; align-items:flex-end;">
+                                <select id="trend-grouping" style="width: auto; padding: 0.25rem 0.5rem; border-radius: 4px; border: 1px solid var(--border); background: rgba(0, 0, 0, 0.2); color: var(--text-main); font-size: 0.8rem;">
+                                    <option value="all" selected>All</option>
+                                    <option value="week">Weekly Avg</option>
+                                    <option value="month">Monthly Avg</option>
+                                </select>
+                                <div id="month-filter-row" style="display:none; align-items:center; gap:0.5rem; font-size:0.8rem;">
+                                    <span style="color:var(--text-muted); white-space:nowrap;">Months:</span>
+                                    <div style="position:relative;">
+                                        <div class="multiselect-btn" id="month-filter-btn" style="font-size:0.75rem; padding:0.2rem 0.6rem; min-width:110px;">All Months</div>
+                                        <div class="multiselect-dropdown hidden" id="month-filter-dd" style="right:0; left:auto; min-width:150px; top:100%;"></div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                         <div class="chart-container">
                             <canvas id="mttr-chart"></canvas>
@@ -435,130 +444,89 @@
                         </div>
                     </div>
 
-                    <!-- Tables Row -->
-                    <div class="tables-row">
-                        <div class="card glass border-red">
-                            <h3 class="text-red">🚨 Slowest Groups</h3>
-                            <p class="text-xs opacity-70 mb-2">Ranked by total impact (Avg × Volume)</p>
-                            <div class="table-container">
-                                <table id="slow-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Group Name</th>
-                                            <th class="unit-th">Avg Days</th>
-                                            <th>Volume</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <!-- Dynamic rows -->
-                                    </tbody>
-                                </table>
+                    <!-- Analysis Tabs -->
+                    <div style="display:flex; gap:0; border-bottom:2px solid var(--border-color); margin-top:0.5rem;">
+                        <button id="tab-groups-btn" style="padding:0.55rem 1.2rem; background:none; border:none; border-bottom:3px solid #3b82f6; margin-bottom:-2px; color:#3b82f6; font-weight:600; font-size:0.875rem; cursor:pointer; transition:all 0.2s;">📊 By Group</button>
+                        <button id="tab-items-btn" style="padding:0.55rem 1.2rem; background:none; border:none; border-bottom:3px solid transparent; margin-bottom:-2px; color:var(--text-muted); font-size:0.875rem; cursor:pointer; transition:all 0.2s;">📦 By Item</button>
+                    </div>
+
+                    <!-- Tab Panel: Groups -->
+                    <div id="tab-panel-groups">
+                        <div class="tables-row" style="margin-top:1rem;">
+                            <div class="card glass border-red">
+                                <h3 class="text-red">🚨 Slowest Groups</h3>
+                                <p class="text-xs opacity-70 mb-2">Ranked by total impact (Avg × Volume)</p>
+                                <div class="table-container">
+                                    <table id="slow-table">
+                                        <thead><tr><th>Group Name</th><th class="unit-th">Avg Days</th><th>Volume</th></tr></thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="card glass border-green">
+                                <h3 class="text-green">⭐ Best Performers</h3>
+                                <p class="text-xs opacity-70 mb-2">(Min 3 tickets)</p>
+                                <div class="table-container">
+                                    <table id="fast-table">
+                                        <thead><tr><th>Group Name</th><th class="unit-th">Avg Days</th><th>Volume</th></tr></thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
-
-                        <div class="card glass border-green">
-                            <h3 class="text-green">⭐ Best Performers</h3>
-                            <p class="text-xs opacity-70 mb-2">(Min 3 tickets)</p>
-                            <div class="table-container">
-                                <table id="fast-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Group Name</th>
-                                            <th class="unit-th">Avg Days</th>
-                                            <th>Volume</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <!-- Dynamic rows -->
-                                    </tbody>
-                                </table>
+                        <div style="margin-top:1rem;">
+                            <div class="card glass border-orange" style="width:100%;">
+                                <h3 class="text-orange">⚠️ Group Outliers <span style="font-size:0.75rem; font-weight:400; opacity:0.7; margin-left:0.5rem;">(Low volume, high MTTR — 1 or 2 tickets only)</span></h3>
+                                <div class="table-container">
+                                    <table id="outlier-table">
+                                        <thead><tr><th>Group Name</th><th class="unit-th">Avg Days</th><th>Volume</th></tr></thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Outliers Row -->
-                    <div id="outliers-row" style="margin-top:1rem;">
-                        <div class="card glass border-orange" style="width:100%;">
-                            <h3 class="text-orange">⚠️ Outliers <span
-                                    style="font-size:0.75rem; font-weight:400; opacity:0.7; margin-left:0.5rem;">(Low
-                                    volume, high MTTR — 1 or 2 tickets only)</span></h3>
-                            <div class="table-container">
-                                <table id="outlier-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Group Name</th>
-                                            <th class="unit-th">Avg Days</th>
-                                            <th>Volume</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <!-- Dynamic rows -->
-                                    </tbody>
-                                </table>
+                    <!-- Tab Panel: Items -->
+                    <div id="tab-panel-items" style="display:none;">
+                        <p style="font-size:0.8rem; color:var(--text-muted); margin:0.75rem 0 0.25rem; padding:0.5rem 0.75rem; background:rgba(59,130,246,0.08); border-radius:6px; border-left:3px solid #3b82f6;">
+                            💡 <strong>Tip:</strong> If you see ticket numbers instead of item names, go to <strong>Settings → Catalog Item Column</strong> and select the column with the actual catalog item name (e.g., "cat_item", "Category").
+                        </p>
+                        <div class="tables-row" style="margin-top:0.75rem;">
+                            <div class="card glass border-red">
+                                <h3 class="text-red">🚨 Slowest Items</h3>
+                                <p class="text-xs opacity-70 mb-2">Ranked by total impact (Avg × Volume)</p>
+                                <div class="table-container">
+                                    <table id="slow-item-table">
+                                        <thead><tr><th id="item-th-1">Item / Category</th><th class="unit-th">Avg Days</th><th>Volume</th></tr></thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="card glass border-green">
+                                <h3 class="text-green">⭐ Best Performing Items</h3>
+                                <p class="text-xs opacity-70 mb-2">(Min 3 tickets)</p>
+                                <div class="table-container">
+                                    <table id="fast-item-table">
+                                        <thead><tr><th id="item-th-2">Item / Category</th><th class="unit-th">Avg Days</th><th>Volume</th></tr></thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="margin-top:1rem;">
+                            <div class="card glass border-orange" style="width:100%;">
+                                <h3 class="text-orange">⚠️ Item Outliers <span style="font-size:0.75rem; font-weight:400; opacity:0.7; margin-left:0.5rem;">(Low volume, high MTTR — 1 or 2 tickets only)</span></h3>
+                                <div class="table-container">
+                                    <table id="outlier-item-table">
+                                        <thead><tr><th id="item-th-3">Item / Category</th><th class="unit-th">Avg Days</th><th>Volume</th></tr></thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Item Tables Row -->
-                    <div class="tables-row" style="margin-top:1.5rem;">
-                        <div class="card glass border-red">
-                            <h3 class="text-red">🚨 Slowest Items</h3>
-                            <p class="text-xs opacity-70 mb-2">Ranked by total impact (Avg × Volume)</p>
-                            <div class="table-container">
-                                <table id="slow-item-table">
-                                    <thead>
-                                        <tr>
-                                            <th id="item-th-1">Item / Category</th>
-                                            <th class="unit-th">Avg Days</th>
-                                            <th>Volume</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-
-                        <div class="card glass border-green">
-                            <h3 class="text-green">⭐ Best Performing Items</h3>
-                            <p class="text-xs opacity-70 mb-2">(Min 3 tickets)</p>
-                            <div class="table-container">
-                                <table id="fast-item-table">
-                                    <thead>
-                                        <tr>
-                                            <th id="item-th-2">Item / Category</th>
-                                            <th class="unit-th">Avg Days</th>
-                                            <th>Volume</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Item Outliers Row -->
-                    <div id="item-outliers-row" style="margin-top:1rem;">
-                        <div class="card glass border-orange" style="width:100%;">
-                            <h3 class="text-orange">⚠️ Item Outliers <span
-                                    style="font-size:0.75rem; font-weight:400; opacity:0.7; margin-left:0.5rem;">(Low
-                                    volume, high MTTR — 1 or 2 tickets only)</span></h3>
-                            <div class="table-container">
-                                <table id="outlier-item-table">
-                                    <thead>
-                                        <tr>
-                                            <th id="item-th-3">Item / Category</th>
-                                            <th class="unit-th">Avg Days</th>
-                                            <th>Volume</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
                 </div>
 
                 <!-- Empty State -->
@@ -594,7 +562,7 @@
         </div>
     </div>
 
-    <script src="app.js?v=18"></script>
+    <script src="app.js?v=19"></script>
 </body>
 
 </html>

@@ -23,7 +23,8 @@ const state = {
     selectedReqStates: [],
     selectedCloseCodes: [],
     selectedRatings: [],
-    calcMode: 'mean' // 'mean' or 'median'
+    calcMode: 'mean', // 'mean' or 'median'
+    selectedMonths: []
 };
 
 // --- Utility: debounce ---
@@ -362,23 +363,32 @@ function buildMultiselect(ddEl, btnEl, values, stateKey) {
     state[stateKey] = [];
     btnEl.textContent = 'All';
 
-    // Add Select All / Clear All buttons
+    // --- Search input ---
+    const searchWrap = document.createElement('div');
+    searchWrap.style.cssText = 'padding:6px 8px 4px; border-bottom:1px solid var(--border-color);';
+    const searchInput = document.createElement('input');
+    searchInput.type = 'text';
+    searchInput.placeholder = '🔍 Search...';
+    searchInput.style.cssText = 'width:100%; padding:4px 8px; border-radius:4px; border:1px solid var(--border-color); background:var(--surface-light); color:var(--text-main); font-size:0.8rem; box-sizing:border-box;';
+    searchInput.addEventListener('click', e => e.stopPropagation());
+    searchWrap.appendChild(searchInput);
+    ddEl.appendChild(searchWrap);
+
+    // --- Actions (Select All / Clear All) ---
     const actionsDiv = document.createElement('div');
     actionsDiv.className = 'multiselect-actions';
-
     const selectAllBtn = document.createElement('button');
     selectAllBtn.className = 'btn-text';
     selectAllBtn.textContent = 'Select All';
-
     const clearAllBtn = document.createElement('button');
     clearAllBtn.className = 'btn-text';
     clearAllBtn.textContent = 'Clear All';
-
     actionsDiv.appendChild(selectAllBtn);
     actionsDiv.appendChild(clearAllBtn);
     ddEl.appendChild(actionsDiv);
 
     const checkboxes = [];
+    const labels = [];
 
     values.forEach(val => {
         const label = document.createElement('label');
@@ -387,6 +397,7 @@ function buildMultiselect(ddEl, btnEl, values, stateKey) {
         cb.type = 'checkbox';
         cb.value = val;
         checkboxes.push(cb);
+        labels.push({ el: label, val: String(val).toLowerCase() });
 
         cb.addEventListener('change', () => {
             if (cb.checked) {
@@ -396,16 +407,23 @@ function buildMultiselect(ddEl, btnEl, values, stateKey) {
             }
             const count = state[stateKey].length;
             btnEl.textContent = count === 0 ? 'All' : `${count} Selected`;
-            autoRecalc(); // ← auto re-run whenever a filter checkbox changes
+            autoRecalc();
         });
         label.appendChild(cb);
         label.appendChild(document.createTextNode(val));
         ddEl.appendChild(label);
     });
 
+    // Search filter
+    searchInput.addEventListener('input', () => {
+        const q = searchInput.value.toLowerCase();
+        labels.forEach(({ el, val }) => {
+            el.style.display = val.includes(q) ? '' : 'none';
+        });
+    });
+
     selectAllBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
+        e.preventDefault(); e.stopPropagation();
         checkboxes.forEach(cb => cb.checked = true);
         state[stateKey] = [...values];
         btnEl.textContent = `${values.length} Selected`;
@@ -413,8 +431,7 @@ function buildMultiselect(ddEl, btnEl, values, stateKey) {
     });
 
     clearAllBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
+        e.preventDefault(); e.stopPropagation();
         checkboxes.forEach(cb => cb.checked = false);
         state[stateKey] = [];
         btnEl.textContent = 'All';
@@ -695,6 +712,15 @@ function renderDashboard() {
         }
     });
 
+    // Detect if item column is showing ticket numbers (RITM, INC, CHG, etc.) not catalog names
+    const TICKET_NUM_RE = /^(RITM|INC|CHG|SCTASK|PRB|REQ|STASK)\d+$/i;
+    const itemKeys = Object.keys(itemValMap);
+    if (itemKeys.length > 0 && itemKeys.slice(0, Math.min(8, itemKeys.length)).every(k => TICKET_NUM_RE.test(String(k)))) {
+        showToast('⚠️ "Catalog Item Column" is set to ticket IDs. Please correct it in Settings → Analysis Filters.');
+        // Clear item maps — tables will show "No data available" nudging user to fix config
+        itemKeys.forEach(k => { delete itemValMap[k]; delete itemHoursMap[k]; });
+    }
+
     const allHours = state.processedData.map(r => r['Calculated_Hours']);
     const sumVals = allVals.reduce((a, b) => a + b, 0);
     const meanVal = total > 0 ? sumVals / total : 0;
@@ -846,65 +872,106 @@ function showToast(msg) {
 // --- Charting ---
 function renderTrendChart(targetLineValue, kpiUnit, metricKey) {
     const ctx = document.getElementById('mttr-chart').getContext('2d');
+    if (state.chartInstance) state.chartInstance.destroy();
 
-    if (state.chartInstance) {
-        state.chartInstance.destroy();
-    }
-
-    // Sort by date ascending
     const sortedData = [...state.processedData].sort((a, b) => a._startObj - b._startObj);
-
-    // Group by timeframe (day, week, month)
-    const grouping = els.trendGrouping ? els.trendGrouping.value : 'day';
-    const groupedData = {};
-
-    sortedData.forEach(row => {
-        const dt = new Date(row._startObj);
-        let bucketKey;
-        if (grouping === 'month') {
-            bucketKey = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-01`;
-        } else if (grouping === 'week') {
-            const firstDay = new Date(dt);
-            const day = firstDay.getDay();
-            const diff = firstDay.getDate() - day + (day === 0 ? -6 : 1); // Monday
-            firstDay.setDate(diff);
-            bucketKey = `${firstDay.getFullYear()}-${String(firstDay.getMonth() + 1).padStart(2, '0')}-${String(firstDay.getDate()).padStart(2, '0')}`;
-        } else {
-            // day
-            bucketKey = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
-        }
-
-        if (!groupedData[bucketKey]) {
-            groupedData[bucketKey] = {
-                dateObj: new Date(bucketKey),
-                vals: [],
-                hours: []
-            };
-        }
-        groupedData[bucketKey].vals.push(row[metricKey]);
-        groupedData[bucketKey].hours.push(row['Calculated_Hours']);
-    });
-
+    const grouping = els.trendGrouping ? els.trendGrouping.value : 'all';
     const useMedian = state.calcMode === 'median';
-    const chartData = Object.keys(groupedData).sort().map(key => {
-        const bucket = groupedData[key];
-        let yVal;
-        if (useMedian) {
-            const medHrs = calcMedian(bucket.hours);
-            yVal = kpiUnit === 'Days' ? (medHrs / 24) : medHrs;
-        } else {
-            yVal = bucket.vals.reduce((a, b) => a + b, 0) / bucket.vals.length;
-        }
-        return {
-            x: bucket.dateObj,
-            y: yVal,
-            _bucketStr: key,
-            _count: bucket.vals.length
-        };
-    });
-
     const textColor = state.theme === 'dark' ? '#94a3b8' : '#64748b';
     const gridColor = state.theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
+
+    let chartData, onClickFn, tooltipCbs, xTimeUnit;
+
+    if (grouping === 'all') {
+        // ── Individual data points (one dot per ticket) ──
+        chartData = sortedData.map(row => ({ x: row._startObj, y: row[metricKey], _raw: row }));
+        xTimeUnit = 'day';
+
+        onClickFn = (e, activeElements) => {
+            if (!activeElements.length || activeElements[0].datasetIndex !== 0) return;
+            const pt = chartData[activeElements[0].index];
+            const id = pt._raw[els.idCol.value] || 'Unknown';
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(id).then(() => showToast(`Copied: ${id}`));
+            } else {
+                const ta = document.createElement('textarea');
+                ta.value = id; ta.style.position = 'fixed'; document.body.appendChild(ta);
+                ta.select(); try { document.execCommand('copy'); showToast(`Copied: ${id}`); } catch (_) {}
+                document.body.removeChild(ta);
+            }
+        };
+
+        tooltipCbs = {
+            title: (ctx) => {
+                if (ctx[0].datasetIndex === 1) return 'KPI Target';
+                return ctx[0].raw._raw[els.idCol.value] || 'Ticket';
+            },
+            label: (context) => {
+                if (context.datasetIndex === 1) return `  Target: ${targetLineValue} ${kpiUnit}`;
+                const row = context.raw._raw;
+                const val = kpiUnit === 'Days' ? Math.round(context.parsed.y) : context.parsed.y.toFixed(1);
+                const grp = row[els.groupCol.value] || 'N/A';
+                return [`  ${kpiUnit}: ${val}`, `  Group: ${grp}`];
+            }
+        };
+    } else {
+        // ── Aggregated (weekly or monthly averages) ──
+        let dataToUse = sortedData;
+
+        // Apply month filter when in monthly mode
+        if (grouping === 'month' && state.selectedMonths.length > 0) {
+            dataToUse = sortedData.filter(row => {
+                const dt = new Date(row._startObj);
+                const key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}`;
+                return state.selectedMonths.includes(key);
+            });
+        }
+
+        const groupedData = {};
+        dataToUse.forEach(row => {
+            const dt = new Date(row._startObj);
+            let bucketKey;
+            if (grouping === 'month') {
+                bucketKey = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-01`;
+            } else {
+                // week — bucket to Monday
+                const fd = new Date(dt);
+                const day = fd.getDay();
+                fd.setDate(fd.getDate() - day + (day === 0 ? -6 : 1));
+                bucketKey = `${fd.getFullYear()}-${String(fd.getMonth() + 1).padStart(2, '0')}-${String(fd.getDate()).padStart(2, '0')}`;
+            }
+            if (!groupedData[bucketKey]) groupedData[bucketKey] = { dateObj: new Date(bucketKey), vals: [], hours: [] };
+            groupedData[bucketKey].vals.push(row[metricKey]);
+            groupedData[bucketKey].hours.push(row['Calculated_Hours']);
+        });
+
+        chartData = Object.keys(groupedData).sort().map(key => {
+            const bucket = groupedData[key];
+            let yVal;
+            if (useMedian) {
+                const medHrs = calcMedian(bucket.hours);
+                yVal = kpiUnit === 'Days' ? (medHrs / 24) : medHrs;
+            } else {
+                yVal = bucket.vals.reduce((a, b) => a + b, 0) / bucket.vals.length;
+            }
+            return { x: bucket.dateObj, y: yVal, _bucketStr: key, _count: bucket.vals.length };
+        });
+
+        xTimeUnit = grouping; // 'week' or 'month'
+        onClickFn = () => {};
+        tooltipCbs = {
+            title: (ctx) => {
+                if (ctx[0].datasetIndex === 1) return 'KPI Target';
+                return `Period: ${ctx[0].raw._bucketStr}`;
+            },
+            label: (context) => {
+                if (context.datasetIndex === 1) return `  Target: ${targetLineValue} ${kpiUnit}`;
+                const pt = context.raw;
+                const val = kpiUnit === 'Days' ? Math.round(context.parsed.y) : context.parsed.y.toFixed(1);
+                return [`  Avg ${kpiUnit}: ${val}`, `  Volume: ${pt._count} tickets`];
+            }
+        };
+    }
 
     state.chartInstance = new Chart(ctx, {
         type: 'line',
@@ -917,8 +984,8 @@ function renderTrendChart(targetLineValue, kpiUnit, metricKey) {
                     backgroundColor: 'rgba(59, 130, 246, 0.1)',
                     borderWidth: 2,
                     pointBackgroundColor: '#3b82f6',
-                    pointRadius: 3,
-                    pointHoverRadius: 6,
+                    pointRadius: grouping === 'all' ? 3 : 5,
+                    pointHoverRadius: 7,
                     fill: true,
                     tension: 0.2
                 },
@@ -936,43 +1003,17 @@ function renderTrendChart(targetLineValue, kpiUnit, metricKey) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            onClick: (e, activeElements) => {
-                // If we want to drill down, we could open the modal for the specific date bucket.
-                // For now, let's just log or ignore since the data is aggregated.
-            },
-            onHover: (e, activeElements) => {
-                e.native.target.style.cursor = activeElements.length > 0 ? 'pointer' : 'default';
-            },
+            onClick: onClickFn,
+            onHover: (e, els) => { e.native.target.style.cursor = els.length > 0 ? 'pointer' : 'default'; },
             plugins: {
-                legend: {
-                    labels: { color: textColor }
-                },
-                tooltip: {
-                    callbacks: {
-                        title: function (contexts) {
-                            if (contexts[0].datasetIndex === 1) return 'KPI Target';
-                            const pt = contexts[0].raw;
-                            return `Date: ${pt._bucketStr}`;
-                        },
-                        label: function (context) {
-                            if (context.datasetIndex === 1) return `  Target: ${targetLineValue} ${kpiUnit}`;
-
-                            const pt = context.raw;
-                            const val = kpiUnit === 'Days' ? Math.round(context.parsed.y) : context.parsed.y.toFixed(1);
-                            
-                            return [
-                                `  Avg ${kpiUnit}: ${val}`,
-                                `  Volume: ${pt._count} tickets`
-                            ];
-                        }
-                    }
-                }
+                legend: { labels: { color: textColor } },
+                tooltip: { callbacks: tooltipCbs }
             },
             scales: {
                 x: {
                     type: 'time',
                     time: {
-                        unit: els.trendGrouping ? els.trendGrouping.value : 'day',
+                        unit: xTimeUnit,
                         displayFormats: { day: 'MMM d', week: 'MMM d', month: 'MMM yyyy' }
                     },
                     ticks: { color: textColor },
@@ -987,6 +1028,53 @@ function renderTrendChart(targetLineValue, kpiUnit, metricKey) {
             }
         }
     });
+}
+
+// --- Month Filter Builder ---
+function buildMonthFilter(processedData) {
+    const btn = $id('month-filter-btn');
+    const dd = $id('month-filter-dd');
+    if (!btn || !dd) return;
+
+    const monthSet = new Set();
+    processedData.forEach(row => {
+        const dt = new Date(row._startObj);
+        if (!isNaN(dt)) monthSet.add(`${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}`);
+    });
+    const months = [...monthSet].sort();
+
+    dd.innerHTML = '';
+    state.selectedMonths = [];
+    btn.textContent = 'All Months';
+
+    const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const checkboxes = [];
+
+    months.forEach(key => {
+        const [year, mon] = key.split('-');
+        const label = document.createElement('label');
+        label.className = 'multiselect-option';
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.value = key;
+        checkboxes.push(cb);
+
+        cb.addEventListener('change', () => {
+            if (cb.checked) { if (!state.selectedMonths.includes(key)) state.selectedMonths.push(key); }
+            else { state.selectedMonths = state.selectedMonths.filter(m => m !== key); }
+            btn.textContent = state.selectedMonths.length === 0 ? 'All Months' : `${state.selectedMonths.length} Month(s)`;
+            if (state.processedData.length > 0) {
+                const mk = els.kpiUnit.value === 'Days' ? 'Calculated_Days' : 'Calculated_Hours';
+                renderTrendChart(parseFloat(els.kpiTarget.value), els.kpiUnit.value, mk);
+            }
+        });
+
+        label.appendChild(cb);
+        label.appendChild(document.createTextNode(` ${MONTH_NAMES[parseInt(mon) - 1]} ${year}`));
+        dd.appendChild(label);
+    });
+
+    wireMultiselect('month-filter-btn', 'month-filter-dd');
 }
 
 function renderHistogramChart(kpiUnit, metricKey) {
@@ -1364,11 +1452,52 @@ function attachEventListeners() {
     els.viewDataBtn.addEventListener('click', () => openDataModal());
     if (els.trendGrouping) {
         els.trendGrouping.addEventListener('change', () => {
+            const grp = els.trendGrouping.value;
+            const monthRow = $id('month-filter-row');
+            if (monthRow) {
+                monthRow.style.display = grp === 'month' ? 'flex' : 'none';
+                if (grp === 'month' && state.processedData.length > 0) buildMonthFilter(state.processedData);
+            }
             if (state.processedData.length > 0) {
                 renderTrendChart(parseFloat(els.kpiTarget.value), els.kpiUnit.value, els.kpiUnit.value === 'Days' ? 'Calculated_Days' : 'Calculated_Hours');
             }
         });
     }
+
+    // Tab switching: By Group / By Item
+    function switchTab(tab) {
+        const grpPanel = $id('tab-panel-groups');
+        const itmPanel = $id('tab-panel-items');
+        const grpBtn = $id('tab-groups-btn');
+        const itmBtn = $id('tab-items-btn');
+        if (!grpPanel || !itmPanel || !grpBtn || !itmBtn) return;
+        if (tab === 'groups') {
+            grpPanel.style.display = '';
+            itmPanel.style.display = 'none';
+            grpBtn.style.cssText = grpBtn.style.cssText.replace('transparent', '#3b82f6').replace('var(--text-muted)', '#3b82f6');
+            grpBtn.style.borderBottomColor = '#3b82f6';
+            grpBtn.style.color = '#3b82f6';
+            grpBtn.style.fontWeight = '600';
+            itmBtn.style.borderBottomColor = 'transparent';
+            itmBtn.style.color = 'var(--text-muted)';
+            itmBtn.style.fontWeight = '400';
+        } else {
+            grpPanel.style.display = 'none';
+            itmPanel.style.display = '';
+            itmBtn.style.borderBottomColor = '#3b82f6';
+            itmBtn.style.color = '#3b82f6';
+            itmBtn.style.fontWeight = '600';
+            grpBtn.style.borderBottomColor = 'transparent';
+            grpBtn.style.color = 'var(--text-muted)';
+            grpBtn.style.fontWeight = '400';
+        }
+    }
+
+    const tabGroupsBtn = $id('tab-groups-btn');
+    const tabItemsBtn = $id('tab-items-btn');
+    if (tabGroupsBtn) tabGroupsBtn.addEventListener('click', () => switchTab('groups'));
+    if (tabItemsBtn) tabItemsBtn.addEventListener('click', () => switchTab('items'));
+
     els.modalCloseBtn.addEventListener('click', closeDataModal);
     els.modalOverlay.addEventListener('click', (e) => {
         if (e.target === els.modalOverlay) closeDataModal();
