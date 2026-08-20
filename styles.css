@@ -50,7 +50,7 @@ body {
     color: var(--text-main);
     line-height: 1.5;
     padding: 1rem;
-    min-height: 100vh;
+    min-height: 100vh; overflow-x: hidden;
 }
 [data-theme="light"] body {
     background: var(--bg-main);
@@ -210,7 +210,7 @@ header p {
     background: var(--bg-card);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15); box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
     box-shadow: var(--shadow);
 }
 [data-theme="light"] .glass {
@@ -542,7 +542,7 @@ th:nth-child(3), td:nth-child(3) { text-align: right; }
 }
 
 /* Responsive */
-@media (max-width: 900px) {
+@media (max-width: 1200px) {
     .grid-layout {
         grid-template-columns: 1fr;
     }

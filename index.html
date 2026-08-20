@@ -8,12 +8,11 @@
     <link rel="stylesheet" href="styles.css?v=1.3.1">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- SheetJS for client-side Excel parsing -->
-    <script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    
     <!-- Chart.js for visualization -->
-    <script defer src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script
-        src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    
+    
+    
 </head>
 
 <body>
@@ -365,7 +364,7 @@
                                     <label for="kpi-target">KPI Target</label>
                                     <div style="display:flex; gap:0.5rem;">
                                         <input type="number" id="kpi-target" value="5" min="0" step="0.1"
-                                            style="flex:1;">
+                                            style="flex:1; min-width: 50px; padding: 0.5rem;">
                                         <select id="kpi-unit" style="width:auto; min-width:80px;">
                                             <option value="Days">Days</option>
                                             <option value="Hours">Hours</option>
@@ -570,7 +569,13 @@
         </div>
     </div>
 
-    <script src="app.js?v=1.3.1"></script>
+    
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script
+        src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="app.js?v=1.3.1"></script>
 </body>
 
 </html>
