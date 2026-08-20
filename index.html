@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ServiceNow MTTR Dashboard</title>
-    <link rel="stylesheet" href="styles.css?v=1.5.0">
+    <link rel="stylesheet" href="styles.css?v=1.5.1">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- SheetJS for client-side Excel parsing -->
     
@@ -557,7 +557,19 @@
                         </path>
                     </svg>
                     <h3>No Data Analyzed Yet</h3>
-                    <p>Upload a file and click Calculate to view insights.</p>
+                    <p style="margin-bottom: 1.5rem;">Upload a file and click Calculate to view insights.</p>
+                    <button id="empty-calculate-btn" class="btn btn-primary hidden" style="font-size: 1.1rem; padding: 0.75rem 2rem;">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width: 1.25rem; height: 1.25rem; margin-right: 0.5rem; display: inline-block; vertical-align: middle;">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                        </svg>
+                        Calculate Now
+                    </button>
+                    <div id="empty-arrow-hint" class="hidden" style="margin-top: 2rem; color: var(--primary); animation: bounce 2s infinite;">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width: 2rem; height: 2rem; transform: rotate(45deg);">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
+                        </svg>
+                        <p style="font-size: 0.85rem; font-weight: 600; text-transform: uppercase; margin-top: 0.5rem;">Check Filters Before Calculating</p>
+                    </div>
                 </div>
             </div>
         </main>
@@ -566,7 +578,7 @@
     <!-- Splash Screen Modal -->
     <div id="splash-modal" class="modal-overlay hidden" style="z-index: 9999;">
         <div class="modal-box glass" style="max-width: 600px; text-align: center; padding: 2.5rem;">
-            <h2 style="font-size: 1.8rem; margin-bottom: 1rem; color: var(--primary);">What's New in v1.5.0 🎉</h2>
+            <h2 style="font-size: 1.8rem; margin-bottom: 1rem; color: var(--primary);">What's New in v1.5.1 🎉</h2>
             <div style="text-align: left; margin-bottom: 2rem; font-size: 0.95rem; line-height: 1.6; color: var(--text-main);">
                 <ul style="list-style-type: disc; padding-left: 20px; display: flex; flex-direction: column; gap: 0.75rem;">
                     <li><strong>Enhanced Glassmorphism UI:</strong> A complete visual overhaul with glowing borders, deep drop-shadows, and a responsive layout that auto-stacks cleanly on small screens.</li>
@@ -574,6 +586,7 @@
                     <li><strong>Interactive Drill-downs:</strong> Both 'By Group' and 'By Item' tables now feature explicitly clickable links to drill down into raw ticket data.</li>
                     <li><strong>SLA Badging Fix:</strong> 'Target Missed' KPI badges now pop out correctly without being clipped by the card edges.</li>
                     <li><strong>Bug Fixes:</strong> Resolved race conditions causing blank graphs and fixed UI squishing on target integer inputs.</li>
+                    <li><strong>Intuitive UX Flow:</strong> Added visual guides, bouncing arrows, and pulsing buttons to seamlessly guide new users through the calculation process after data upload.</li>
                 </ul>
             </div>
             <button id="splash-dismiss-btn" class="btn btn-primary" style="width: 100%; padding: 0.75rem; font-size: 1rem;">Awesome, let's go!</button>
@@ -605,7 +618,7 @@
 <script
         src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-<script src="app.js?v=1.5.0"></script>
+<script src="app.js?v=1.5.1"></script>
 </body>
 
 </html>

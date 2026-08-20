@@ -190,13 +190,13 @@ function initSplash() {
     const dismissBtn = document.getElementById('splash-dismiss-btn');
     if (!splashModal || !dismissBtn) return;
 
-    if (!sessionStorage.getItem('mttr_splash_dismissed_v1.5.0')) {
+    if (!sessionStorage.getItem('mttr_splash_dismissed_v1.5.1')) {
         splashModal.classList.remove('hidden');
     }
 
     dismissBtn.addEventListener('click', () => {
         splashModal.classList.add('hidden');
-        sessionStorage.setItem('mttr_splash_dismissed_v1.5.0', 'true');
+        sessionStorage.setItem('mttr_splash_dismissed_v1.5.1', 'true');
     });
 }
 
@@ -327,6 +327,13 @@ function parseExcel(file) {
             populateSettings();
             els.settingsCard.classList.remove('hidden');
             els.filtersCard.classList.remove('hidden');
+            
+            // UX Guidance: Show calculate buttons and animations
+            const eBtn = document.getElementById('empty-calculate-btn');
+            const eHint = document.getElementById('empty-arrow-hint');
+            if(eBtn) eBtn.classList.remove('hidden');
+            if(eHint) eHint.classList.remove('hidden');
+            els.calculateBtn.classList.add('pulse-btn');
 
             // Ensure config is expanded when new file loaded
             els.configBody.classList.remove('collapsed');
@@ -567,6 +574,7 @@ function updateFilterOptions() {
 
 // --- Core Calculation Logic ---
 function calculateMTTR() {
+    els.calculateBtn.classList.remove('pulse-btn');
     const startCol = els.startCol.value;
     const endCol = els.endCol.value;
     const timeframe = els.timeframe.value;
@@ -1583,6 +1591,8 @@ function attachEventListeners() {
     });
 
     els.calculateBtn.addEventListener('click', calculateMTTR);
+    const eBtn = document.getElementById('empty-calculate-btn');
+    if(eBtn) eBtn.addEventListener('click', calculateMTTR);
     els.downloadBtn.addEventListener('click', generateExecutiveReport);
     els.downloadCsvBtn.addEventListener('click', exportCsv);
     els.viewDataBtn.addEventListener('click', () => openDataModal());
