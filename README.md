@@ -8,7 +8,14 @@ Originally built in Python, this tool was completely re-architected in **V3.0** 
 
 ## ✨ Version History
 
-### **V3.0 (Latest Release)**
+### **v1.5.0 (Latest Release)**
+* **Advanced Glassmorphism UI:** Complete visual overhaul featuring deep glowing borders, frosted glass cards, and smooth hover transitions.
+* **Global Monthly Filtering:** Easily slice the entire dashboard (KPIs, Tables, and Charts) by a specific month (e.g. 2026-08) using the new 'Date Range' toggle.
+* **Interactive Drill-downs:** The "By Group" and "By Item" tables now feature visually distinct, clickable links that instantly open the raw ticket data modal.
+* **SLA Badging & Layout Fixes:** Fixed KPI badges popping out correctly, eliminated horizontal scrollbars by improving the CSS grid responsiveness, and squashed rendering bugs with chart data.
+* **First-Launch Splash Screen:** Added an interactive "What's New" modal that greets users with recent changes upon opening a new session.
+
+### **V3.0 (Legacy Web App)**
 * **Client-Side Architecture:** Rebuilt entirely in HTML/JS. Data never leaves your browser, ensuring maximum privacy and instant calculation speeds.
 * **Smart Column Detection:** The app now "peeks" into your data to automatically map columns. It actively detects and ignores columns containing RITM/INC IDs when searching for your Catalog Items.
 * **Ongoing Tickets Analysis:** Tickets without a 'Closed' date are no longer ignored. The app calculates their current age based on the export date and plots them in orange so you can track SLA bleed.

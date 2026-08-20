@@ -181,7 +181,23 @@ const els = {
 // --- Initialization ---
 function init() {
     initTheme();
+    initSplash();
     attachEventListeners();
+}
+
+function initSplash() {
+    const splashModal = document.getElementById('splash-modal');
+    const dismissBtn = document.getElementById('splash-dismiss-btn');
+    if (!splashModal || !dismissBtn) return;
+
+    if (!sessionStorage.getItem('mttr_splash_dismissed_v1.5.0')) {
+        splashModal.classList.remove('hidden');
+    }
+
+    dismissBtn.addEventListener('click', () => {
+        splashModal.classList.add('hidden');
+        sessionStorage.setItem('mttr_splash_dismissed_v1.5.0', 'true');
+    });
 }
 
 // --- Theme Management ---
