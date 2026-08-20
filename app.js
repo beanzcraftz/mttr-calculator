@@ -331,7 +331,11 @@ function populateSettings() {
         sel.innerHTML = optionsHtml;
     });
 
-    const findCol = (kws) => state.columns.find(c => kws.some(kw => c.toLowerCase().includes(kw)));
+    const findCol = (kws, validator = null) => state.columns.find(c => {
+        const match = kws.some(kw => c.toLowerCase().includes(kw));
+        if (match && validator) return validator(c);
+        return match;
+    });
 
     const foundPriority = findCol(['priority']);
     if (foundPriority) els.priorityCol.value = foundPriority;
@@ -342,7 +346,16 @@ function populateSettings() {
     const foundRisk = findCol(['risk']);
     if (foundRisk) els.riskCol.value = foundRisk;
 
-    const foundItem = findCol(['catalog item', 'cat item', 'cat_item', 'parent item', 'item', 'request type']);
+    // Smart detector: skip columns that are just ticket IDs (e.g. RITMs)
+    const notTicketIdValidator = (colName) => {
+        const TICKET_NUM_RE = /^(RITM|INC|CHG|SCTASK|PRB|REQ|STASK)\d+$/i;
+        const vals = state.rawData.map(r => r[colName]).filter(v => v != null && String(v).trim() !== '').slice(0, 5);
+        if (vals.length === 0) return true;
+        return !vals.every(v => TICKET_NUM_RE.test(String(v))); // Reject if ALL sample values are ticket IDs
+    };
+
+    // Note: checking 'category' as fallback since often catalog items land in Category if "item" is missing
+    const foundItem = findCol(['catalog item', 'cat item', 'cat_item', 'parent item', 'item', 'request type', 'category'], notTicketIdValidator);
     if (foundItem) els.reqItemCol.value = foundItem;
 
     const foundState = findCol(['state', 'status']);
