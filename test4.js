@@ -1,1 +1,0 @@
-const fs=require('fs'); let html=fs.readFileSync('index.html', 'utf8'); html = html.replace('<script src=\"app.js?v=1.3.1\"></script>', ''); html = html.replace('</body>', '<script src=\"app.js?v=1.3.1\"></script>\n</body>'); fs.writeFileSync('index.html', html);

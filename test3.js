@@ -1,1 +1,0 @@
-const fs=require('fs'); const lines=fs.readFileSync('index.html', 'utf8').split('\n'); let d=0; for(let i=0;i<lines.length;i++){ let o=(lines[i].match(/<div/gi)||[]).length; let c=(lines[i].match(/<\/div/gi)||[]).length; d+=o-c; if(lines[i].includes('id=\"config-body\"')) console.log('config-body at', i, 'depth', d); if (i >= 205 && i <= 216) console.log(i, lines[i].trim(), d); }

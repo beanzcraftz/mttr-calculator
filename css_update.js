@@ -1,1 +1,0 @@
-const fs=require('fs'); let css=fs.readFileSync('styles.css', 'utf8'); css = css.replace('@media (max-width: 900px)', '@media (max-width: 1200px)'); css = css.replace('border: 1px solid rgba(255, 255, 255, 0.08);', 'border: 1px solid rgba(255, 255, 255, 0.15); box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);'); fs.writeFileSync('styles.css', css);
