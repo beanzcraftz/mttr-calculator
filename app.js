@@ -178,10 +178,109 @@ const els = {
     dataGridBody: document.getElementById('data-grid-body')
 };
 
+// --- Executive Summary Logic ---
+let currentSmartSummary = '';
+
+function generateSmartSummary(unit, target, compliance, avg, total, breaches, slow, fast) {
+    const tfEl = document.getElementById('timeframe');
+    const timeframe = tfEl.options[tfEl.selectedIndex].text;
+    
+    let worst = slow.length > 0 ? slow[0] : null;
+    let best = fast.length > 0 ? fast[0] : null;
+    
+    let text = `Over the <strong>${timeframe}</strong>, your team resolved <strong>${total} tickets</strong> with an average MTTR of <strong>${avg} ${unit}</strong>.`;
+    
+    const compNum = parseFloat(compliance);
+    if(compNum >= 80) {
+        text += ` This is a strong performance, achieving a <strong>${compliance}% compliance rate</strong> against your ${target}-${unit} KPI.`;
+    } else {
+        text += ` This missed the mark, resulting in only a <strong>${compliance}% compliance rate</strong> against your ${target}-${unit} KPI. There are currently <strong>${breaches} active tickets</strong> already breaching this target.`;
+    }
+    
+    if (worst) {
+        text += ` The biggest drag on your MTTR is currently <strong>${worst.name}</strong> (${worst.vol} tickets averaging ${worst.avg} ${unit}).`;
+    }
+    if (best) {
+        text += ` On the positive side, <strong>${best.name}</strong> is performing exceptionally well (${best.vol} tickets averaging ${best.avg} ${unit}).`;
+    }
+    
+    currentSmartSummary = text;
+    document.getElementById('summary-content').innerHTML = text;
+}
+
+// AI Modal Wiring
+function wireAI() {
+    const aiBtn = document.getElementById('ai-enhance-btn');
+    const aiModal = document.getElementById('ai-modal');
+    const aiCancel = document.getElementById('ai-cancel-btn');
+    const aiGenerate = document.getElementById('ai-generate-btn');
+    const aiKey = document.getElementById('gemini-api-key');
+    const aiLoading = document.getElementById('ai-loading');
+
+    if (aiBtn) {
+        aiBtn.addEventListener('click', () => {
+            const savedKey = sessionStorage.getItem('gemini_key');
+            if(savedKey) aiKey.value = savedKey;
+            aiModal.classList.remove('hidden');
+        });
+    }
+    if (aiCancel) {
+        aiCancel.addEventListener('click', () => {
+            aiModal.classList.add('hidden');
+        });
+    }
+    if (aiGenerate) {
+        aiGenerate.addEventListener('click', async () => {
+            const key = aiKey.value.trim();
+            if(!key) return alert('Please enter an API key');
+            sessionStorage.setItem('gemini_key', key);
+            
+            aiLoading.classList.remove('hidden');
+            aiGenerate.disabled = true;
+            
+            const prompt = `You are an IT Service Management analyst. I will provide you with a raw auto-generated summary of our MTTR (Mean Time to Resolution) dashboard. Please rewrite it into a highly professional, concise, and insightful executive narrative (2-3 short paragraphs max). Focus on business impact, tone down the robotic numbers, and provide a single actionable recommendation based on the data. Do not use markdown headers, just plain paragraphs. Here is the raw data: ${currentSmartSummary.replace(/<[^>]*>?/gm, '')}`;
+            
+            try {
+                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: prompt }] }]
+                    })
+                });
+                const data = await res.json();
+                
+                if(data.error) throw new Error(data.error.message);
+                
+                const aiText = data.candidates[0].content.parts[0].text;
+                // format as HTML paragraphs
+                const htmlText = aiText.split('\n\n').map(p => `<p style="margin-bottom:0.75rem;">${p}</p>`).join('');
+                
+                document.getElementById('summary-content').innerHTML = `<div style="padding:1rem; background:rgba(59,130,246,0.1); border-left:3px solid var(--primary); border-radius:4px;"><strong>✨ AI Insight:</strong><br><br>${htmlText}</div>`;
+                aiModal.classList.add('hidden');
+            } catch (err) {
+                alert('Error generating summary: ' + err.message);
+            } finally {
+                aiLoading.classList.add('hidden');
+                aiGenerate.disabled = false;
+            }
+        });
+    }
+}
+
 // --- Initialization ---
+function showCalculatePrompts() {
+    const eBtn = document.getElementById('empty-calculate-btn');
+    const eHint = document.getElementById('empty-arrow-hint');
+    if(eBtn) eBtn.classList.remove('hidden');
+    if(eHint) eHint.classList.remove('hidden');
+    els.calculateBtn.classList.add('pulse-btn');
+}
+
 function init() {
     initTheme();
     initSplash();
+    wireAI();
     attachEventListeners();
 }
 
@@ -190,13 +289,13 @@ function initSplash() {
     const dismissBtn = document.getElementById('splash-dismiss-btn');
     if (!splashModal || !dismissBtn) return;
 
-    if (!sessionStorage.getItem('mttr_splash_dismissed_v1.5.1')) {
+    if (!sessionStorage.getItem('mttr_splash_dismissed_v1.6.0')) {
         splashModal.classList.remove('hidden');
     }
 
     dismissBtn.addEventListener('click', () => {
         splashModal.classList.add('hidden');
-        sessionStorage.setItem('mttr_splash_dismissed_v1.5.1', 'true');
+        sessionStorage.setItem('mttr_splash_dismissed_v1.6.0', 'true');
     });
 }
 
@@ -246,6 +345,7 @@ function navigateToModule(moduleName) {
         populateSettings();
         els.settingsCard.classList.remove('hidden');
         els.filtersCard.classList.remove('hidden');
+        showCalculatePrompts();
     }
 }
 
@@ -329,11 +429,7 @@ function parseExcel(file) {
             els.filtersCard.classList.remove('hidden');
             
             // UX Guidance: Show calculate buttons and animations
-            const eBtn = document.getElementById('empty-calculate-btn');
-            const eHint = document.getElementById('empty-arrow-hint');
-            if(eBtn) eBtn.classList.remove('hidden');
-            if(eHint) eHint.classList.remove('hidden');
-            els.calculateBtn.classList.add('pulse-btn');
+            showCalculatePrompts();
 
             // Ensure config is expanded when new file loaded
             els.configBody.classList.remove('collapsed');
@@ -574,6 +670,23 @@ function updateFilterOptions() {
 
 // --- Core Calculation Logic ---
 function calculateMTTR() {
+    const loader = document.getElementById('global-loader');
+    if (loader) loader.classList.remove('hidden');
+    
+    // Yield to browser so loader renders before heavy lifting
+    setTimeout(() => {
+        try {
+            _runCalculateMTTR();
+        } catch (e) {
+            console.error("Calculation Error: ", e);
+            alert("An error occurred during calculation. Please check console for details.");
+        } finally {
+            if (loader) loader.classList.add('hidden');
+        }
+    }, 50);
+}
+
+function _runCalculateMTTR() {
     els.calculateBtn.classList.remove('pulse-btn');
     const startCol = els.startCol.value;
     const endCol = els.endCol.value;
@@ -927,10 +1040,13 @@ function renderDashboard() {
 
     // 3. Render Charts
     renderTrendChart(targetValue, kpiUnit, metricKey);
+    renderHistogramChart(kpiUnit, metricKey);
     
     lastRunHash = getSelectionsHash();
     updateCalcBadge();
-renderHistogramChart(kpiUnit, metricKey);
+    
+    const formattedAvg = kpiUnit === 'Days' ? (useMedian ? displayVal.toFixed(1) : Math.round(displayVal)) : displayVal.toFixed(1);
+    generateSmartSummary(kpiUnit, targetValue, compliance.toFixed(1), formattedAvg, total, activeBreachesCount, slowGroups, fastGroups);
 }
 
 

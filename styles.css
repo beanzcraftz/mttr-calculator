@@ -487,7 +487,7 @@ select:focus, input:focus {
 
 .table-container {
     overflow-x: auto;
-    max-height: 350px;
+    max-height: none;
     overflow-y: auto;
 }
 
@@ -762,4 +762,29 @@ th:nth-child(3), td:nth-child(3) { text-align: right; }
 }
 .pulse-btn {
     animation: pulseGlow 2s infinite;
+}
+
+@keyframes rotate {
+  100% { transform: rotate(360deg); }
+}
+@keyframes dash {
+  0% { stroke-dasharray: 1, 150; stroke-dashoffset: 0; }
+  50% { stroke-dasharray: 90, 150; stroke-dashoffset: -35; }
+  100% { stroke-dasharray: 90, 150; stroke-dashoffset: -124; }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.4);
 }

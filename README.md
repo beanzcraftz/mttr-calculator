@@ -8,7 +8,13 @@ Originally built in Python, this tool was completely re-architected in **V3.0** 
 
 ## ✨ Version History
 
-### **v1.5.0 (Latest Release)**
+### **v1.6.0 (Latest Release)**
+* **AI Executive Summary:** Added an instant natural language summary of your dashboard right above the KPIs. You can also securely connect a Gemini API key to have an AI agent write a personalized analytical narrative.
+* **Loading Indicators:** Added a global processing overlay to indicate when the app is crunching large datasets.
+* **Sleek UI Polish:** Eliminated chunky native scrollbars in favor of custom, thin glassmorphism scrollbars that beautifully blend into the dark theme.
+* **Universal Module Parity:** Ensured all recent dashboard UX enhancements (like bouncing arrows, pulsing buttons, and dynamic drill-downs) properly carry over when switching between all modules.
+
+### **v1.5.0**
 * **Advanced Glassmorphism UI:** Complete visual overhaul featuring deep glowing borders, frosted glass cards, and smooth hover transitions.
 * **Global Monthly Filtering:** Easily slice the entire dashboard (KPIs, Tables, and Charts) by a specific month (e.g. 2026-08) using the new 'Date Range' toggle.
 * **Interactive Drill-downs:** The "By Group" and "By Item" tables now feature visually distinct, clickable links that instantly open the raw ticket data modal.
