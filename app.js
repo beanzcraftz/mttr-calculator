@@ -581,7 +581,7 @@ function calculateMTTR() {
         }
     } else if (timeframe !== 'All Data') {
         const refDate = new Date(sheetExportDate);
-        const daysMap = { "Today": 0, "Yesterday": 1, "Last 7 Days": 7, "Last 30 Days": 30, "Last 90 Days": 90 };
+        const daysMap = { "Today": 0, "Yesterday": 1, "Last 7 Days": 7, "Last 30 Days": 30, "Last 90 Days": 90, "Last 6 Months": 180, "Last 12 Months": 365 };
         const daysToSubtract = daysMap[timeframe] || 0;
 
         const cutoff = new Date(refDate);

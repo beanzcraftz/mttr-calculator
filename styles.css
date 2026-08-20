@@ -45,11 +45,15 @@
 
 body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    background-color: var(--bg-main);
+    background: radial-gradient(circle at top right, #1e293b 0%, #0f172a 40%, #020617 100%);
+    background-attachment: fixed;
     color: var(--text-main);
     line-height: 1.5;
-    transition: var(--transition);
+    padding: 1rem;
     min-height: 100vh;
+}
+[data-theme="light"] body {
+    background: var(--bg-main);
 }
 
 .app-container {
@@ -201,12 +205,16 @@ header p {
 }
 .icon-btn-small:hover { color: var(--danger); }
 
-/* Glass Cards */
+/* Glassmorphism */
 .glass {
     background: var(--bg-card);
-    backdrop-filter: var(--glass-blur);
-    border: var(--glass-border);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     box-shadow: var(--shadow);
+}
+[data-theme="light"] .glass {
+    border: var(--glass-border);
 }
 
 .card {
@@ -306,10 +314,10 @@ header p {
     color: var(--text-muted);
 }
 
-select, input[type="number"] {
+select, input[type="number"], input[type="date"] {
     width: 100%;
     padding: 0.75rem;
-    background-color: rgba(0, 0, 0, 0.2);
+    background-color: #1e293b;
     border: 1px solid var(--border);
     border-radius: 8px;
     color: var(--text-main);
@@ -317,9 +325,26 @@ select, input[type="number"] {
     font-size: 0.875rem;
     transition: var(--transition);
 }
+select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' viewBox='0 0 24 24'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    padding-right: 2.5rem;
+}
+select option {
+    background-color: #1e293b;
+    color: #f1f5f9;
+}
 
-[data-theme="light"] select, [data-theme="light"] input[type="number"] {
+[data-theme="light"] select, [data-theme="light"] input[type="number"], [data-theme="light"] input[type="date"] {
     background-color: white;
+}
+[data-theme="light"] select option {
+    background-color: white;
+    color: #0f172a;
 }
 
 select:focus, input:focus {

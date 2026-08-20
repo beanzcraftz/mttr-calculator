@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ServiceNow MTTR Dashboard</title>
-    <link rel="stylesheet" href="styles.css?v=1.2.0">
+    <link rel="stylesheet" href="styles.css?v=1.3.0">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- SheetJS for client-side Excel parsing -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -348,6 +348,8 @@
                                         <option value="Last 7 Days">Last 7 Days</option>
                                         <option value="Last 30 Days" selected>Last 30 Days</option>
                                         <option value="Last 90 Days">Last 90 Days</option>
+                                        <option value="Last 6 Months">Last 6 Months</option>
+                                        <option value="Last 12 Months">Last 12 Months</option>
                                         <option value="Custom Range">Custom Range</option>
                                     </select>
                                     <div id="custom-date-range" class="hidden"
@@ -568,7 +570,7 @@
         </div>
     </div>
 
-    <script src="app.js?v=1.2.0"></script>
+    <script src="app.js?v=1.3.0"></script>
 </body>
 
 </html>
