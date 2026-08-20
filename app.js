@@ -341,7 +341,7 @@ function populateSettings() {
     const foundRisk = findCol(['risk']);
     if (foundRisk) els.riskCol.value = foundRisk;
 
-    const foundItem = findCol(['item', 'catalog', 'request type', 'parent item']);
+    const foundItem = findCol(['catalog item', 'cat item', 'cat_item', 'parent item', 'item', 'request type']);
     if (foundItem) els.reqItemCol.value = foundItem;
 
     const foundState = findCol(['state', 'status']);
@@ -645,7 +645,7 @@ function renderDashboard() {
     let itemLabel = 'Item / Category';
     if (state.currentModule === 'Request') {
         itemLabel = 'Item';
-        itemCol = els.reqItemCol.value || findCol(['item', 'catalog', 'parent item', 'request type']) || '';
+        itemCol = els.reqItemCol.value || findCol(['catalog item', 'cat item', 'cat_item', 'parent item', 'item', 'request type']) || '';
     } else if (state.currentModule === 'Incident') {
         itemLabel = 'Priority';
         itemCol = els.priorityCol.value || findCol(['priority']) || '';
@@ -854,11 +854,54 @@ function renderTrendChart(targetLineValue, kpiUnit, metricKey) {
     // Sort by date ascending
     const sortedData = [...state.processedData].sort((a, b) => a._startObj - b._startObj);
 
-    const chartData = sortedData.map(row => ({
-        x: row._startObj,
-        y: row[metricKey],
-        _raw: row
-    }));
+    // Group by timeframe (day, week, month)
+    const grouping = els.trendGrouping ? els.trendGrouping.value : 'day';
+    const groupedData = {};
+
+    sortedData.forEach(row => {
+        const dt = new Date(row._startObj);
+        let bucketKey;
+        if (grouping === 'month') {
+            bucketKey = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-01`;
+        } else if (grouping === 'week') {
+            const firstDay = new Date(dt);
+            const day = firstDay.getDay();
+            const diff = firstDay.getDate() - day + (day === 0 ? -6 : 1); // Monday
+            firstDay.setDate(diff);
+            bucketKey = `${firstDay.getFullYear()}-${String(firstDay.getMonth() + 1).padStart(2, '0')}-${String(firstDay.getDate()).padStart(2, '0')}`;
+        } else {
+            // day
+            bucketKey = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+        }
+
+        if (!groupedData[bucketKey]) {
+            groupedData[bucketKey] = {
+                dateObj: new Date(bucketKey),
+                vals: [],
+                hours: []
+            };
+        }
+        groupedData[bucketKey].vals.push(row[metricKey]);
+        groupedData[bucketKey].hours.push(row['Calculated_Hours']);
+    });
+
+    const useMedian = state.calcMode === 'median';
+    const chartData = Object.keys(groupedData).sort().map(key => {
+        const bucket = groupedData[key];
+        let yVal;
+        if (useMedian) {
+            const medHrs = calcMedian(bucket.hours);
+            yVal = kpiUnit === 'Days' ? (medHrs / 24) : medHrs;
+        } else {
+            yVal = bucket.vals.reduce((a, b) => a + b, 0) / bucket.vals.length;
+        }
+        return {
+            x: bucket.dateObj,
+            y: yVal,
+            _bucketStr: key,
+            _count: bucket.vals.length
+        };
+    });
 
     const textColor = state.theme === 'dark' ? '#94a3b8' : '#64748b';
     const gridColor = state.theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
@@ -894,28 +937,8 @@ function renderTrendChart(targetLineValue, kpiUnit, metricKey) {
             responsive: true,
             maintainAspectRatio: false,
             onClick: (e, activeElements) => {
-                if (activeElements.length > 0) {
-                    const datasetIndex = activeElements[0].datasetIndex;
-                    if (datasetIndex === 0) {
-                        const dataIndex = activeElements[0].index;
-                        const dataPoint = chartData[dataIndex];
-                        const idCol = els.idCol.value;
-                        const id = dataPoint._raw[idCol] || 'Unknown';
-
-                        if (navigator.clipboard && window.isSecureContext) {
-                            navigator.clipboard.writeText(id).then(() => showToast(`Copied ${id} to clipboard!`));
-                        } else {
-                            const textArea = document.createElement("textarea");
-                            textArea.value = id;
-                            textArea.style.position = "fixed";
-                            document.body.appendChild(textArea);
-                            textArea.focus();
-                            textArea.select();
-                            try { document.execCommand('copy'); showToast(`Copied ${id} to clipboard!`); } catch (err) { }
-                            document.body.removeChild(textArea);
-                        }
-                    }
-                }
+                // If we want to drill down, we could open the modal for the specific date bucket.
+                // For now, let's just log or ignore since the data is aggregated.
             },
             onHover: (e, activeElements) => {
                 e.native.target.style.cursor = activeElements.length > 0 ? 'pointer' : 'default';
@@ -928,28 +951,18 @@ function renderTrendChart(targetLineValue, kpiUnit, metricKey) {
                     callbacks: {
                         title: function (contexts) {
                             if (contexts[0].datasetIndex === 1) return 'KPI Target';
-                            const row = contexts[0].raw._raw;
-                            const idCol = els.idCol.value;
-                            return row[idCol] || 'Ticket';
+                            const pt = contexts[0].raw;
+                            return `Date: ${pt._bucketStr}`;
                         },
                         label: function (context) {
                             if (context.datasetIndex === 1) return `  Target: ${targetLineValue} ${kpiUnit}`;
 
-                            const row = context.raw._raw;
-                            const grpCol = els.groupCol.value;
-                            const startColVal = els.startCol.value;
-                            const endColVal = els.endCol.value;
-
-                            const grp = row[grpCol] || 'N/A';
+                            const pt = context.raw;
                             const val = kpiUnit === 'Days' ? Math.round(context.parsed.y) : context.parsed.y.toFixed(1);
-                            const startDate = row[startColVal] ? new Date(row[startColVal]).toLocaleDateString() : 'N/A';
-                            const endDate = row[endColVal] ? new Date(row[endColVal]).toLocaleDateString() : 'N/A';
-
+                            
                             return [
-                                `  ${kpiUnit}: ${val}`,
-                                `  Group: ${grp}`,
-                                `  Opened: ${startDate}`,
-                                `  Resolved: ${endDate}`
+                                `  Avg ${kpiUnit}: ${val}`,
+                                `  Volume: ${pt._count} tickets`
                             ];
                         }
                     }
